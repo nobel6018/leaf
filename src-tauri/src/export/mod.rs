@@ -16,7 +16,9 @@ use serde::{Deserialize, Serialize};
 use tauri::Manager;
 use tauri_plugin_dialog::DialogExt;
 
-use crate::library::{document_dir, load_applied, load_processing, read_json, write_atomic};
+use leaf_core::fsio::write_atomic;
+
+use crate::library::{document_dir, load_applied, load_processing, read_json};
 
 pub const EXPORTS_DIR: &str = "exports";
 

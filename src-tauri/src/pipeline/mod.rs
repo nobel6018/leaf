@@ -17,7 +17,7 @@ use std::path::{Path, PathBuf};
 
 use chrono::Utc;
 use image::RgbImage;
-use leaf_core::processing::{OutputPage, PIPELINE_VERSION, PROCESSING_FILE, PagePart, ProcessOptions, Processing};
+use leaf_core::processing::{OutputPage, PIPELINE_VERSION, PagePart, ProcessOptions, Processing};
 use leaf_core::{Manifest, Page, Quad};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -25,7 +25,9 @@ use uuid::Uuid;
 
 pub use worker::{JobState, Pipeline};
 
-use crate::library::{load_processing, read_json, write_atomic, write_json};
+use leaf_core::fsio::write_atomic;
+
+use crate::library::{load_processing, read_json, write_json};
 
 /// 썸네일 너비. 보관함 표지와 문서 화면 페이지 목록이 같이 쓴다
 pub const THUMB_WIDTH: u32 = 360;
@@ -306,6 +308,6 @@ fn save_outputs(
         .iter()
         .flat_map(|page| outputs_by_page.get(&page.id).cloned().unwrap_or_default())
         .collect();
-    write_json(&ctx.dir.join(PROCESSING_FILE), &processing)?;
+    processing.save(ctx.dir).map_err(|e| e.to_string())?;
     Ok(processing)
 }

@@ -7,8 +7,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use leaf_core::overrides::{EDITS_FILE, Edits};
-use leaf_core::processing::{PROCESSING_FILE, ProcessOptions, Processing};
+use leaf_core::overrides::Edits;
+use leaf_core::processing::{ProcessOptions, Processing};
 use leaf_core::summary::{PamphletSummary, SUMMARY_FILE};
 use leaf_core::{DocumentKind, Manifest, PageLayout, Quad};
 use serde::de::DeserializeOwned;
@@ -39,47 +39,31 @@ pub fn document_dir(app: &tauri::AppHandle, document_id: &str) -> Result<PathBuf
     Ok(dir)
 }
 
-/// 임시 파일에 쓴 뒤 이름 바꾸기. 반쯤 쓴 파일을 다른 쪽이 읽지 않게 한다
-pub fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-    let parent = path.parent().ok_or_else(|| std::io::Error::other("상위 폴더가 없다"))?;
-    fs::create_dir_all(parent)?;
-    let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("file");
-    let temp = parent.join(format!(".{name}.{}.tmp", Uuid::new_v4().simple()));
-    fs::write(&temp, bytes)?;
-    fs::rename(&temp, path)
-}
-
+/// leaf-core 공용 쓰기를 화면용 오류 문자열로 감싼다
 pub fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), String> {
-    let json = serde_json::to_vec_pretty(value).map_err(|e| e.to_string())?;
-    write_atomic(path, &json).map_err(|e| format!("{} 저장 실패: {e}", path.display()))
+    leaf_core::fsio::write_json(path, value).map_err(|e| e.to_string())
 }
 
 /// 없으면 None, 깨졌으면 오류
 pub fn read_json<T: DeserializeOwned>(path: &Path) -> Result<Option<T>, String> {
-    match fs::read(path) {
-        Ok(bytes) => serde_json::from_slice(&bytes)
-            .map(Some)
-            .map_err(|e| format!("{} 형식 오류: {e}", path.display())),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-        Err(e) => Err(format!("{} 읽기 실패: {e}", path.display())),
-    }
+    leaf_core::fsio::read_json_optional(path).map_err(|e| e.to_string())
 }
 
 /// edits.json이 깨졌으면 없는 것으로 본다. 화면에서 다시 고치면 새로 쓴다
 pub fn load_edits(dir: &Path) -> Edits {
-    read_json(&dir.join(EDITS_FILE)).unwrap_or_else(|e| {
+    Edits::load(dir).unwrap_or_else(|e| {
         eprintln!("{e}");
-        None
+        Edits::default()
     })
-    .unwrap_or_default()
 }
 
 pub fn load_processing(dir: &Path) -> Processing {
-    read_json(&dir.join(PROCESSING_FILE)).unwrap_or_else(|e| {
-        eprintln!("{e}");
-        None
-    })
-    .unwrap_or_default()
+    Processing::load(dir)
+        .unwrap_or_else(|e| {
+            eprintln!("{e}");
+            None
+        })
+        .unwrap_or_default()
 }
 
 /// manifest에 Mac 수정을 덮어쓴 결과
@@ -304,7 +288,7 @@ pub fn save_edits(
     let merged = edits.apply(&manifest);
     // Edits는 꼭짓점 범위를 검사하지 않으므로 manifest 검증 규칙으로 한 번 더 본다
     merged.validate().map_err(|e| e.to_string())?;
-    write_json(&dir.join(EDITS_FILE), &edits)?;
+    edits.save(&dir).map_err(|e| e.to_string())?;
     pipeline.enqueue(&document_id, false);
     crate::search::refresh_document(&app, &document_id);
     Ok(())
@@ -322,7 +306,7 @@ pub fn set_processing_options(
     pipeline.with_document_lock(&document_id, || {
         let mut processing = load_processing(&dir);
         processing.defaults = options;
-        write_json(&dir.join(PROCESSING_FILE), &processing)
+        processing.save(&dir).map_err(|e| e.to_string())
     })?;
     pipeline.enqueue(&document_id, false);
     Ok(())
@@ -418,20 +402,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn 원자적_저장은_임시_파일을_남기지_않는다() {
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("a").join("edits.json");
-        write_atomic(&path, b"{}").unwrap();
-        write_atomic(&path, b"{\"name\":\"x\"}").unwrap();
-        let names: Vec<_> = fs::read_dir(path.parent().unwrap()).unwrap().flatten().map(|e| e.file_name()).collect();
-        assert_eq!(names.len(), 1);
-        assert_eq!(fs::read_to_string(&path).unwrap(), "{\"name\":\"x\"}");
-    }
-
-    #[test]
     fn 깨진_edits는_빈_수정으로_본다() {
         let dir = tempfile::tempdir().unwrap();
-        fs::write(dir.path().join(EDITS_FILE), b"{not json").unwrap();
+        fs::write(dir.path().join(leaf_core::overrides::EDITS_FILE), b"{not json").unwrap();
         assert_eq!(load_edits(dir.path()), Edits::default());
     }
 }
