@@ -3,7 +3,9 @@
 //! @see docs/architecture.md
 
 mod ai;
+mod ask;
 pub mod busy;
+mod calendar;
 mod download;
 mod export;
 pub mod inbox;
@@ -13,6 +15,7 @@ mod ocr;
 mod pipeline;
 mod search;
 pub mod store;
+mod tagger;
 pub mod transfer;
 mod update;
 
@@ -90,6 +93,13 @@ pub fn run() {
             ai::export_docx,
             ai::export_ai_bundle,
             ai::export_notion_csv,
+            ask::ask_document,
+            ask::ask_library,
+            tagger::document_tags,
+            tagger::set_document_tags,
+            tagger::suggest_tags,
+            calendar::calendar_access,
+            calendar::suggest_session,
             models::models_status,
             models::install_models,
             models::cancel_model_install,
