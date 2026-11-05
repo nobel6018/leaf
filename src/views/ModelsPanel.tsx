@@ -63,7 +63,7 @@ export function ModelsPanel({ onError }: { onError: (e: string) => void }) {
           <li key={m.file}>
             <span>{m.purpose}</span>
             <span className="hint">
-              {mb(m.size)}, {m.license} {m.installed ? "설치됨" : "없음"}
+              {mb(m.size)}, {m.license} 라이선스, {m.installed ? "설치됨" : "받지 않음"}
             </span>
           </li>
         ))}

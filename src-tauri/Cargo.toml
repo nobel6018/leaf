@@ -1,6 +1,6 @@
 [package]
 name = "leaf"
-version = "0.1.0"
+version = "0.1.1"
 description = "leaf Mac 앱: iPhone에서 받은 스캔을 보정, OCR, AI 정리, 내보내기"
 edition = "2024"
 publish = false
@@ -31,7 +31,6 @@ ureq = "2.12"
 tauri-plugin-process = "2"
 axum = { version = "0.8", default-features = false, features = ["http1", "tokio", "json"] }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "net", "fs", "io-util", "sync", "time", "macros"] }
-mdns-sd = "0.21"
 keyring = "4"
 getrandom = "0.3"
 sha2 = "0.10"
@@ -64,3 +63,7 @@ objc2-event-kit = { version = "0.3", default-features = false, features = ["std"
 reqwest = { version = "0.13", default-features = false, features = ["json"] }
 rustls = { version = "0.23", default-features = false, features = ["ring"] }
 tempfile = "3"
+
+# macOS는 시스템 mDNSResponder(DNSServiceRegister)로 Bonjour를 알리고, 다른 OS만 mdns-sd를 쓴다(transfer/bonjour.rs)
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+mdns-sd = "0.21"

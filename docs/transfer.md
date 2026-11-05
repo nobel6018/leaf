@@ -8,6 +8,8 @@
 
 Mac 앱이 HTTP 서버를 열고 Bonjour `_leaf._tcp`로 알립니다. iPhone은 Network.framework `NWBrowser`로 찾습니다.
 
+macOS에서는 시스템 mDNSResponder에 등록합니다(`DNSServiceRegister`). v0.1.0은 자체 mDNS 응답기(mdns-sd)를 썼는데, mDNSResponder가 5353 포트를 쥐고 있어 광고가 루프백에만 보이고 Wi-Fi로 나가지 않았습니다. 확인은 `dns-sd -B _leaf._tcp`의 `if` 열에 Wi-Fi 인터페이스 번호가 보이는지로 합니다.
+
 - 서버는 앱을 켤 때 `0.0.0.0`의 OS가 고른 포트에 엽니다(`transfer::setup`). 포트는 실행마다 바뀌고 iPhone은 Bonjour로 알아냅니다
 - Bonjour는 순수 Rust `mdns-sd`로 알립니다(Windows에도 그대로 쓰려고). 인스턴스 이름은 Mac의 컴퓨터 이름, TXT는 `api=1`, `version=<앱 버전>`입니다. 서버가 IPv4에만 열려 있어 IPv4 주소만 알립니다(`transfer/bonjour.rs`)
 
