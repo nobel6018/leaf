@@ -2,8 +2,22 @@
 name = "leaf-ai"
 version = "0.1.0"
 edition = "2024"
-description = "leaf 팜플렛 AI 정리(claude CLI), 노션 CSV, Word 내보내기 (docs/ai.md)"
+description = "leaf 팜플렛 AI 정리(claude CLI), 노션 CSV, Word 내보내기, AI 묶음 (docs/ai.md)"
 publish = false
 
 [dependencies]
 leaf-core = { path = "../leaf-core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+chrono = { version = "0.4.45", features = ["serde"] }
+uuid = { version = "1.29.0", features = ["v4"] }
+csv = "1.4"
+docx-rs = "0.4.22"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+tempfile = "3"
