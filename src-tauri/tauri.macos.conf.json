@@ -1,0 +1,14 @@
+{
+  "bundle": {
+    "fileAssociations": [
+      {
+        "ext": ["jpg", "jpeg", "png", "heic", "heif", "pdf"],
+        "name": "스캔할 그림과 PDF",
+        "description": "leaf 보관함으로 가져와 보정하고 글자 읽기",
+        "role": "Viewer",
+        "rank": "Alternate",
+        "contentTypes": ["public.jpeg", "public.png", "public.heic", "public.heif", "com.adobe.pdf"]
+      }
+    ]
+  }
+}
