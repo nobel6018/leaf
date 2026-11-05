@@ -27,7 +27,7 @@ pub struct CorrectInput<'a> {
     pub models: &'a Models,
 }
 
-/// 원본 한 장을 출력 페이지 한 장 또는 두 장으로 만든다
+/// 원본 한 장을 출력 페이지 한 장, 두 장(펼친 책), 세 장(3단 접지)으로 만든다
 pub fn correct_page(input: CorrectInput<'_>) -> Result<Vec<(PagePart, RgbImage)>, String> {
     let models = input.models;
     let flat = perspective_step(input.image, input.quad)?;
@@ -58,11 +58,18 @@ pub fn perspective_step(image: RgbImage, quad: Option<Quad>) -> Result<RgbImage,
     perspective::warp_to_size(&image, &corners, w, h, Interpolation::Bicubic).map_err(|e| e.to_string())
 }
 
-/// 3단계: 펼친 책을 접힌 선에서 왼쪽, 오른쪽으로 나눈다. 접힌 선을 확신하지 못하면(한 쪽만 찍힌 경우) 나누지 않는다
+/// 3단계: 펼친 책을 접힌 선에서 왼쪽, 오른쪽으로, 3단 접지는 접힌 선 두 개에서 세 면으로 나눈다.
+/// 접힌 선을 확신하지 못하면(한 쪽만 찍힌 경우) 나누지 않는다
 pub fn split_step(image: RgbImage, layout: PageLayout) -> Vec<(PagePart, RgbImage)> {
     match layout {
-        // TODO(3단 접지): leaf-vision의 세 면 나누기가 들어오면 Panel(0~2)로. 그 전까지는 통째 한 장
-        PageLayout::Single | PageLayout::Trifold => vec![(PagePart::Whole, image)],
+        PageLayout::Single => vec![(PagePart::Whole, image)],
+        // 왼쪽부터 Panel(0), Panel(1), Panel(2). 출력 id는 -P1~-P3(docs/document-format.md)
+        PageLayout::Trifold => match leaf_vision::split_trifold(&image) {
+            leaf_vision::Trifold::Panels { panels, .. } => {
+                (0u8..).zip(panels).map(|(index, panel)| (PagePart::Panel(index), panel)).collect()
+            }
+            leaf_vision::Trifold::Whole { .. } => vec![(PagePart::Whole, image)],
+        },
         PageLayout::Spread => match leaf_vision::split_spread(&image) {
             leaf_vision::Split::Spread { left, right, .. } => vec![(PagePart::Left, left), (PagePart::Right, right)],
             leaf_vision::Split::Single { .. } => vec![(PagePart::Whole, image)],
@@ -139,11 +146,15 @@ mod tests {
     }
 
     fn spread_input(image: RgbImage) -> Vec<PagePart> {
+        layout_input(image, PageLayout::Spread)
+    }
+
+    fn layout_input(image: RgbImage, layout: PageLayout) -> Vec<PagePart> {
         let options = ProcessOptions { filter: Filter::Original, remove_fingers: false, ..ProcessOptions::default() };
         correct_page(CorrectInput {
             image,
             quad: None,
-            layout: PageLayout::Spread,
+            layout,
             options: &options,
             models: &Models::none(),
         })
@@ -168,6 +179,27 @@ mod tests {
     #[test]
     fn 접힌_선을_못_찾으면_나누지_않는다() {
         assert_eq!(spread_input(RgbImage::from_pixel(400, 300, image::Rgb([240; 3]))), vec![PagePart::Whole]);
+    }
+
+    #[test]
+    fn 접은_자국이_있는_3단_접지는_세_면이_된다() {
+        // 1/3, 2/3에 가는 접은 자국, 면마다 글줄 무늬
+        let image = RgbImage::from_fn(900, 640, |x, y| {
+            let local = x % 300;
+            let crease = local.min(300 - local) < 2 && x > 10 && x < 890;
+            let line = y % 20 < 3 && (30..270).contains(&local) && (60..580).contains(&y);
+            let v = if crease { 170 } else if line { 50 } else { 240 };
+            image::Rgb([v; 3])
+        });
+        assert_eq!(
+            layout_input(image, PageLayout::Trifold),
+            vec![PagePart::Panel(0), PagePart::Panel(1), PagePart::Panel(2)]
+        );
+    }
+
+    #[test]
+    fn 접힌_선을_못_찾은_3단_접지는_통째로_둔다() {
+        assert_eq!(layout_input(RgbImage::from_pixel(900, 640, image::Rgb([240; 3])), PageLayout::Trifold), vec![PagePart::Whole]);
     }
 
     #[test]

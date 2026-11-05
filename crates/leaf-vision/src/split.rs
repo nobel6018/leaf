@@ -258,7 +258,7 @@ fn widest_blank(ink: &[f32], w: usize) -> (usize, usize) {
     best
 }
 
-fn percentile(data: &[f32], q: f32) -> f32 {
+pub(crate) fn percentile(data: &[f32], q: f32) -> f32 {
     let mut v: Vec<f32> = data.iter().step_by(7).copied().collect();
     if v.is_empty() {
         return 0.0;
