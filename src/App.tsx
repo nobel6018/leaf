@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { DocumentKind, DocumentSummary } from "./types";
+import { UpdateBanner } from "./update/UpdateBanner";
+import { useAppUpdate } from "./update/useAppUpdate";
 
 const KIND_LABEL: Record<DocumentKind, string> = {
   pamphlet: "팜플렛",
@@ -11,6 +13,7 @@ const KIND_LABEL: Record<DocumentKind, string> = {
 export default function App() {
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const update = useAppUpdate();
 
   useEffect(() => {
     invoke<DocumentSummary[]>("list_documents")
@@ -20,6 +23,7 @@ export default function App() {
 
   return (
     <main className="library">
+      {update.state.kind !== "none" && <UpdateBanner update={update} onError={setError} />}
       <h1>보관함</h1>
       {error && <p className="error">{error}</p>}
       {documents.length === 0 && !error && (

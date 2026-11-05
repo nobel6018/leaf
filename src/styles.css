@@ -11,3 +11,12 @@ body { margin: 0; }
 .name { flex: 1; }
 .pages, .empty { color: #7a7563; }
 .error { color: #b3261e; }
+/* 업데이트 알림 (src/update/UpdateBanner.tsx) */
+.update-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; margin-bottom: 16px; border-radius: 8px; background: #e8efe0; }
+.update-banner .banner-actions { display: flex; gap: 8px; }
+.update-banner button { min-height: 44px; padding: 0 16px; border-radius: 6px; border: 1px solid #4f7a3a; font: inherit; cursor: pointer; }
+.update-banner button.primary { background: #4f7a3a; color: #fff; }
+.update-banner button.ghost { background: transparent; color: #4f7a3a; }
+.update-banner button:disabled { opacity: 0.5; cursor: default; }
+.update-note { display: block; margin-top: 4px; color: #7a7563; font-size: 13px; }
+.update-note.error { color: #b3261e; }

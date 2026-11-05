@@ -24,7 +24,9 @@
       "csp": null,
       "assetProtocol": {
         "enable": true,
-        "scope": ["$APPDATA/library/**"]
+        "scope": [
+          "$APPDATA/library/**"
+        ]
       }
     }
   },
@@ -40,6 +42,15 @@
     ],
     "macOS": {
       "minimumSystemVersion": "14.2"
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDJEN0EzNzVCRTlEMDBFMjQKUldRa0R0RHBXemQ2TGFscGFmVHNlTG5PZS9jOXFkR2ZHZHhaUzVQNUxmOFVsQnJDUGtieVhuemgK",
+      "endpoints": [
+        "https://github.com/nobel6018/leaf/releases/latest/download/latest.json"
+      ]
     }
   }
 }
