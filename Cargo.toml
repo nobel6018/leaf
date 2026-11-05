@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/leaf-core", "src-tauri"]
+members = ["crates/leaf-core", "crates/leaf-vision", "crates/leaf-ai", "src-tauri"]
 
 [profile.release]
 codegen-units = 1

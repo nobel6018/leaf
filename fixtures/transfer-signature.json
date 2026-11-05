@@ -1,0 +1,10 @@
+{
+  "_note": "합성 예시. 실제 비밀 값이 아니다",
+  "tokenHex": "6c6561662d746573742d746f6b656e2d6e6f742d612d7265616c2d7365637265742d3332",
+  "method": "PUT",
+  "path": "/v1/documents/7d1c2a4e-0f3b-4a8e-9c61-2b5d8e3f1a90/manifest",
+  "timestamp": 1793840400,
+  "body": "{\"schemaVersion\":1}",
+  "bodySha256": "0e9561cfb83d50990a103b3896fe249a11fe27fa28985448187f93ec12116d72",
+  "signature": "a9c0fc408141a79f9d83dc1435dd7d58229cd77ba1623de99ef989c2728668a8"
+}

@@ -1,0 +1,9 @@
+[package]
+name = "leaf-ai"
+version = "0.1.0"
+edition = "2024"
+description = "leaf 팜플렛 AI 정리(claude CLI), 노션 CSV, Word 내보내기 (docs/ai.md)"
+publish = false
+
+[dependencies]
+leaf-core = { path = "../leaf-core" }

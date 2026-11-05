@@ -5,6 +5,12 @@
 //!
 //! @see docs/document-format.md
 
+pub mod ocr;
+pub mod overrides;
+pub mod processing;
+pub mod summary;
+pub mod transfer;
+
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 

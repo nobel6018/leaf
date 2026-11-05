@@ -1,0 +1,66 @@
+//! Mac에서 고친 내용(`edits.json`). manifest.json은 iPhone만 쓰고, Mac은 이 파일만 쓴다.
+//! iPhone이 페이지를 더 찍어 manifest를 다시 보내도 Mac에서 고친 이름과 꼭짓점이 사라지지 않는다.
+//!
+//! @see docs/document-format.md
+
+use std::collections::BTreeMap;
+
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+use crate::{DocumentKind, Manifest, PageLayout, Quad};
+
+pub const EDITS_FILE: &str = "edits.json";
+
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Edits {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub kind: Option<DocumentKind>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session: Option<String>,
+    /// 손으로 고친 꼭짓점. iPhone 감지값보다 우선한다
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub quads: BTreeMap<Uuid, Quad>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub layouts: BTreeMap<Uuid, PageLayout>,
+    /// Mac에서 지운 페이지. 원본은 남기고 목록에서만 뺀다
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub deleted_pages: Vec<Uuid>,
+    /// 페이지 순서를 바꿨으면 전체 순서. 여기 없는 새 페이지는 촬영 순서대로 뒤에 붙는다
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub page_order: Option<Vec<Uuid>>,
+}
+
+impl Edits {
+    /// manifest에 Mac 수정을 덮어쓴 결과. 화면과 처리 단계는 이 값을 쓴다
+    pub fn apply(&self, manifest: &Manifest) -> Manifest {
+        let mut merged = manifest.clone();
+        if let Some(name) = &self.name {
+            merged.name = name.clone();
+        }
+        if let Some(kind) = self.kind {
+            merged.kind = kind;
+        }
+        if let Some(session) = &self.session {
+            merged.session = Some(session.clone());
+        }
+        merged.pages.retain(|page| !self.deleted_pages.contains(&page.id));
+        for page in &mut merged.pages {
+            if let Some(quad) = self.quads.get(&page.id) {
+                page.quad = Some(*quad);
+            }
+            if let Some(layout) = self.layouts.get(&page.id) {
+                page.layout = *layout;
+            }
+        }
+        if let Some(order) = &self.page_order {
+            let position = |id: &Uuid| order.iter().position(|o| o == id).unwrap_or(usize::MAX);
+            // 안정 정렬이라 순서에 없는 새 페이지는 촬영 순서를 유지한 채 뒤로 간다
+            merged.pages.sort_by_key(|page| position(&page.id));
+        }
+        merged
+    }
+}

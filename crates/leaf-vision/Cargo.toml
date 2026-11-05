@@ -1,0 +1,9 @@
+[package]
+name = "leaf-vision"
+version = "0.1.0"
+edition = "2024"
+description = "leaf 이미지 처리: 두 페이지 분리, 곡면 보정, 조명 보정, 손가락과 필기 지우기 (docs/vision.md)"
+publish = false
+
+[dependencies]
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
