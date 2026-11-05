@@ -1,0 +1,13 @@
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
+  color: #1f2a1f;
+  background: #f6f4ec;
+}
+body { margin: 0; }
+.library { padding: 24px 32px; }
+.library ul { list-style: none; padding: 0; }
+.library li { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid #e2ddcc; }
+.kind { color: #4f7a3a; min-width: 48px; }
+.name { flex: 1; }
+.pages, .empty { color: #7a7563; }
+.error { color: #b3261e; }

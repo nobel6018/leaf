@@ -1,0 +1,14 @@
+[workspace]
+resolver = "3"
+members = ["crates/leaf-core", "src-tauri"]
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "unwind"
+strip = true
+
+# 이미지 처리 크레이트는 개발 빌드에서도 최적화한다. 안 하면 4800만 화소 사진 한 장에 수 초씩 걸린다
+[profile.dev.package."*"]
+opt-level = 3

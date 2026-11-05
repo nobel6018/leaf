@@ -1,0 +1,32 @@
+# 빌드 결과
+node_modules
+dist
+target
+src-tauri/gen/schemas
+ios/build
+ios/*.xcodeproj
+DerivedData
+*.ipa
+
+# 비밀 값: 이 저장소는 public이다. 키, 인증서, 토큰은 절대 커밋하지 않는다
+*.key
+*.pem
+*.p12
+*.p8
+*.mobileprovision
+*.env
+.env*
+!.env.example
+
+# 스캔 결과: 회사 자료와 개인 소장 책이 들어간다. 테스트도 fixtures/의 합성 데이터만 쓴다
+library/
+scans/
+*.leafdoc/
+
+# 편집기
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.sw?
+*.log
