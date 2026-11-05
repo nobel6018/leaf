@@ -19,6 +19,8 @@ struct LeafApp: App {
                     await app.sendPending()
                     app.applyRetention()
                 }
+                // 새 버전 확인은 하루에 한 번만 GitHub에 묻는다(docs/ios.md "업데이트 알림")
+                Task { await app.checkForUpdate() }
             }
         }
     }

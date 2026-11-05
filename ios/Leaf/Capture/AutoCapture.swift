@@ -4,7 +4,7 @@ import Foundation
 // 측정(문서 감지, 움직임, 손, 직전 촬영본과의 거리)은 FrameAnalyzer가 만든다.
 // @see docs/capture.md
 
-/// 기준값. 실제 팜플렛과 책으로 맞춘다. 민감도 설정은 이 값 묶음을 바꾼다
+/// 기준값. 실제 문서, 책, 팜플렛으로 맞춘다. 민감도 설정은 이 값 묶음을 바꾼다
 struct AutoCaptureTuning: Equatable, Sendable {
     /// 문서가 보이고 화면이 멈춘 상태가 이만큼 이어지면 찍는다
     var stableDuration: TimeInterval
