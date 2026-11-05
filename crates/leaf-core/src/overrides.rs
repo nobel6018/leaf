@@ -4,11 +4,12 @@
 //! @see docs/document-format.md
 
 use std::collections::BTreeMap;
+use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::{DocumentKind, Manifest, PageLayout, Quad};
+use crate::{DocumentKind, Manifest, ManifestError, PageLayout, Quad, fsio};
 
 pub const EDITS_FILE: &str = "edits.json";
 
@@ -35,6 +36,15 @@ pub struct Edits {
 }
 
 impl Edits {
+    /// 없으면 빈 수정(고친 것 없음)
+    pub fn load(document_dir: &Path) -> Result<Edits, ManifestError> {
+        Ok(fsio::read_json_optional(&document_dir.join(EDITS_FILE))?.unwrap_or_default())
+    }
+
+    pub fn save(&self, document_dir: &Path) -> Result<(), ManifestError> {
+        fsio::write_json(&document_dir.join(EDITS_FILE), self)
+    }
+
     /// manifest에 Mac 수정을 덮어쓴 결과. 화면과 처리 단계는 이 값을 쓴다
     pub fn apply(&self, manifest: &Manifest) -> Manifest {
         let mut merged = manifest.clone();

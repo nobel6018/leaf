@@ -1,25 +1,10 @@
-use std::fs;
 use std::path::{Component, Path, PathBuf};
 
 use crate::error::{AiError, io_error};
 
-/// 임시 파일에 쓴 뒤 이름을 바꾼다. iCloud 동기화나 앱 종료 중에 반쯤 쓴 파일이 남지 않게 한다
+/// 공용 원자적 쓰기(leaf_core::fsio)에 이 크레이트의 오류 형식을 입힌다
 pub(crate) fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), AiError> {
-    let dir = path.parent().unwrap_or(Path::new("."));
-    fs::create_dir_all(dir).map_err(io_error(dir))?;
-    let file_name = path
-        .file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_default();
-    let temp = dir.join(format!(".{file_name}.{}.tmp", uuid::Uuid::new_v4()));
-    fs::write(&temp, bytes).map_err(io_error(&temp))?;
-    fs::rename(&temp, path).map_err(|source| {
-        let _ = fs::remove_file(&temp);
-        AiError::Io {
-            path: path.to_path_buf(),
-            source,
-        }
-    })
+    leaf_core::fsio::write_atomic(path, bytes).map_err(io_error(path))
 }
 
 /// processing.json은 다른 기기와 동기화되는 파일이라 경로를 믿지 않는다. 문서 폴더 밖이면 거부한다

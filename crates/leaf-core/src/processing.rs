@@ -2,9 +2,13 @@
 //!
 //! @see docs/document-format.md
 
+use std::path::Path;
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+
+use crate::{ManifestError, fsio};
 
 pub const PROCESSING_FILE: &str = "processing.json";
 
@@ -94,4 +98,15 @@ pub struct Processing {
     pub defaults: ProcessOptions,
     /// 문서 페이지 순서대로
     pub outputs: Vec<OutputPage>,
+}
+
+impl Processing {
+    /// 없으면 None(아직 처리 전)
+    pub fn load(document_dir: &Path) -> Result<Option<Processing>, ManifestError> {
+        fsio::read_json_optional(&document_dir.join(PROCESSING_FILE))
+    }
+
+    pub fn save(&self, document_dir: &Path) -> Result<(), ManifestError> {
+        fsio::write_json(&document_dir.join(PROCESSING_FILE), self)
+    }
 }

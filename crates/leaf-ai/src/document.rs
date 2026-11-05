@@ -8,8 +8,8 @@ use std::path::{Path, PathBuf};
 use chrono::Local;
 use leaf_core::Manifest;
 use leaf_core::ocr::OcrPage;
-use leaf_core::overrides::{EDITS_FILE, Edits};
-use leaf_core::processing::{OutputPage, PROCESSING_FILE, Processing};
+use leaf_core::overrides::Edits;
+use leaf_core::processing::{OutputPage, Processing};
 use leaf_core::summary::{PamphletSummary, SUMMARY_FILE};
 use serde::de::DeserializeOwned;
 
@@ -38,11 +38,10 @@ pub struct LoadedDocument {
 impl LoadedDocument {
     pub fn load(document_dir: &Path) -> Result<LoadedDocument, AiError> {
         let manifest = Manifest::load(document_dir)?;
-        let edits: Edits = read_json_optional(&document_dir.join(EDITS_FILE))?.unwrap_or_default();
+        let edits = Edits::load(document_dir)?;
         let manifest = edits.apply(&manifest);
 
-        let processing_path = document_dir.join(PROCESSING_FILE);
-        let processing: Processing = read_json_optional(&processing_path)?
+        let processing = Processing::load(document_dir)?
             .ok_or_else(|| AiError::NotProcessed(document_dir.to_path_buf()))?;
 
         // 처리 뒤 Mac에서 순서를 바꾸거나 페이지를 지웠을 수 있어 manifest 순서를 따른다

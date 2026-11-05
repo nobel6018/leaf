@@ -36,7 +36,8 @@ pub struct PamphletSummary {
     /// 예: `claude -p`
     pub generated_by: String,
     pub generated_at: DateTime<Utc>,
-    /// 사람이 고친 필드가 있으면 다시 생성할 때 덮지 않는다
+    /// 사람이 고친 필드. 다시 생성할 때 덮지 않는다.
+    /// 값은 summary.json의 키 이름(camelCase) 그대로다. 예: `"company"`, `"keySpecs"`. 화면도 이 이름으로 기록한다
     #[serde(default)]
     pub edited_fields: Vec<String>,
 }

@@ -35,7 +35,11 @@ fn 저장했다_다시_읽으면_같다() {
     manifest.save(target.path()).unwrap();
 
     assert_eq!(Manifest::load(target.path()).unwrap(), manifest);
-    assert!(!target.path().join(".manifest.json.tmp").exists());
+    let leftovers = fs::read_dir(target.path())
+        .unwrap()
+        .filter(|e| e.as_ref().unwrap().file_name().to_string_lossy().ends_with(".tmp"))
+        .count();
+    assert_eq!(leftovers, 0);
 }
 
 #[test]

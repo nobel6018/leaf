@@ -140,10 +140,7 @@ pub fn session_document_dirs(library_dir: &Path, session: &str) -> Vec<PathBuf> 
         .filter(|path| path.is_dir())
         .filter_map(|path| {
             let manifest = Manifest::load(&path).ok()?;
-            let edits: leaf_core::overrides::Edits =
-                read_json_optional(&path.join(leaf_core::overrides::EDITS_FILE))
-                    .ok()?
-                    .unwrap_or_default();
+            let edits = leaf_core::overrides::Edits::load(&path).ok()?;
             let merged = edits.apply(&manifest);
             (merged.session.as_deref() == Some(session)).then_some((merged.created_at, path))
         })

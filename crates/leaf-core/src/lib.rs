@@ -5,6 +5,7 @@
 //!
 //! @see docs/document-format.md
 
+pub mod fsio;
 pub mod ocr;
 pub mod overrides;
 pub mod processing;
@@ -122,18 +123,10 @@ impl Manifest {
     }
 
     /// 임시 파일에 쓴 뒤 이름을 바꾼다. 전송이나 iCloud 동기화 중에 반쯤 쓴 manifest를 읽는 일을 막는다
+    /// 전송이나 iCloud 동기화 중에 반쯤 쓴 manifest를 읽지 않도록 원자적으로 쓴다
     pub fn save(&self, document_dir: &Path) -> Result<(), ManifestError> {
         self.validate()?;
-        let path = document_dir.join(MANIFEST_FILE);
-        let temp = document_dir.join(format!(".{MANIFEST_FILE}.tmp"));
-        let io_error = |source| ManifestError::Io {
-            path: path.clone(),
-            source,
-        };
-        let json = serde_json::to_vec_pretty(self).expect("Manifest 직렬화는 실패하지 않는다");
-        fs::write(&temp, json).map_err(io_error)?;
-        fs::rename(&temp, &path).map_err(io_error)?;
-        Ok(())
+        fsio::write_json(&document_dir.join(MANIFEST_FILE), self)
     }
 
     pub fn validate(&self) -> Result<(), ManifestError> {
