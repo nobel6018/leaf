@@ -1,6 +1,6 @@
 # 자동 촬영 설계 (iPhone)
 
-거치대에 iPhone을 고정하고 종이만 바꿔 놓으면 한 장씩 찍히는 흐름이 목표입니다. 코드는 1단계에서 `ios/Leaf/Capture/`에 들어갑니다.
+거치대에 iPhone을 고정하고 종이만 바꿔 놓으면 한 장씩 찍히는 흐름이 목표입니다. 코드는 `ios/Leaf/Capture/`에 있습니다.
 
 ## 상태
 
@@ -10,15 +10,51 @@
 
 | 판단 | 방법 |
 |---|---|
-| 문서 감지 | Vision `VNDetectDocumentSegmentationRequest`. 미리보기에 테두리 표시 |
-| 화면 안정 | 축소한 프레임끼리의 평균 차이가 기준 아래로 일정 시간(시작값 0.6초) 유지 |
+| 문서 감지 | Vision `VNDetectDocumentSegmentationRequest`. 미리보기에 테두리 표시. 화면 대비 넓이가 기준보다 작으면 문서로 보지 않는다 |
+| 화면 안정 | 32x32 흑백으로 줄인 분석 프레임끼리의 평균 밝기 차이가 기준 아래로 일정 시간(보통 0.6초) 유지 |
 | 손 없음 | `VNDetectHumanHandPoseRequest`. 손이 보이면 안정돼도 찍지 않는다. 종이를 내려놓는 손을 찍는 실수를 막는다 |
 | 같은 장 중복 방지 | 직전 촬영본과 `VNGenerateImageFeaturePrintRequest` 거리를 비교. 가까우면 같은 장으로 보고 건너뛴다 |
 
-기준값은 실제 팜플렛과 책으로 맞춥니다. 프레임 분석은 1초에 10번 정도로 줄여 발열을 낮춥니다.
+변화 대기에서 대기로 돌아가는 조건은 문서가 사라짐, 손이 보임, 크게 움직임, 직전 촬영본과 거리가 멀어짐 중 하나입니다. 돌아간 뒤에도 찍기 직전에 중복 검사를 한 번 더 하므로, 종이를 들었다가 같은 장을 다시 놓으면 건너뜁니다. 직전 촬영본이 있는데 거리를 아직 못 쟀으면 찍지 않고 기다립니다(같은 장을 두 번 찍는 것보다 늦게 찍는 편이 낫다).
+
+feature print는 프레임당 수십 ms라 필요할 때만 잽니다(`AutoCaptureEngine.wantsDistance`). 기준 프린트는 사진이 아니라 찍은 순간의 분석 프레임에서 만들어, 비교하는 두 쪽의 해상도가 같습니다.
+
+수동 셔터를 누르거나 마지막 장을 지우거나 다시 찍기를 고르면 판단 상태를 맞춥니다(`manualCaptureStarted`, `forgetLastCapture`).
+
+## 기준값
+
+`ios/Leaf/Capture/AutoCapture.swift` `AutoCaptureTuning`. 설정의 민감도가 세 묶음 중 하나를 고릅니다. 모두 시작값이고 실제 팜플렛과 책으로 맞춥니다.
+
+| 값 | 둔하게 | 보통 | 민감하게 | 뜻 |
+|---|---|---|---|---|
+| `stableDuration` | 1.0초 | 0.6초 | 0.4초 | 멈춘 상태가 이만큼 이어지면 찍는다 |
+| `stillMotion` | 0.012 | 0.018 | 0.025 | 프레임 차이(0~1)가 이보다 작으면 멈춘 것 |
+| `changeMotion` | 0.08 | 0.06 | 0.05 | 촬영 뒤 이보다 크게 움직이면 종이를 바꾸는 중 |
+| `minimumDocumentArea` | 0.18 | 0.12 | 0.08 | 화면 대비 문서 넓이 하한 |
+| `duplicateDistance` | 0.4 | 0.35 | 0.3 | 직전 촬영본과 이보다 가까우면 같은 장 |
+| `changeDistance` | 0.6 | 0.55 | 0.5 | 촬영 뒤 이만큼 멀어지면 다른 장 |
+
+그 밖의 값은 `FrameAnalyzer`에 있습니다: 문서 감지 신뢰도 0.5, 손 관절 신뢰도 0.5 이상 6개, 움직임 축소 크기 32. 분석 빈도는 `FrameThrottle.analysisFPS`(10)입니다.
+
+## 좌표
+
+manifest의 quad는 원본에 EXIF 회전을 적용한 뒤 기준 0~1이고 원점이 왼쪽 위입니다. 계산은 `ios/Leaf/Capture/QuadGeometry.swift`에 모으고 테스트(`QuadGeometryTests`)로 고정했습니다.
+
+- 앱은 세로 고정입니다. 분석 버퍼는 센서 방향(가로) 그대로 두고 Vision에 `.right`를 넘겨, 결과가 세로 표시 방향 기준으로 나오게 합니다
+- Vision 좌표는 원점이 왼쪽 아래라 y만 뒤집습니다(`QuadGeometry.fromVision`). 회전 뒤 꼭짓점 이름은 위치로 다시 붙입니다(`ordered`)
+- 사진은 연결의 `videoRotationAngle`을 90으로 두고 찍어 EXIF 방향이 들어갑니다. 저장 뒤 사진에 EXIF 회전을 적용한 1600px 축소본에서 테두리를 다시 찾고(`FrameAnalyzer.detectQuad(inPhoto:)`), 못 찾으면 미리보기 테두리를 씁니다
+- 세션 프리셋을 `.photo`로 두어 분석 프레임과 사진의 화각과 비율(4:3)이 같습니다. 미리보기도 4:3 상자에 `resizeAspect`로 그려, 테두리를 상자 크기에 그대로 곱하면 됩니다
 
 ## 셔터
 
-- 자동 촬영을 끈 수동 모드도 둡니다
-- 볼륨 버튼과 블루투스 카메라 리모컨: `AVCaptureEventInteraction`(iOS 17.2+). 시중 리모컨은 볼륨 키 신호를 보내므로 같이 처리됩니다
-- 촬영은 `AVCapturePhotoOutput` 최대 해상도, HEIC로 저장합니다
+- 자동 촬영을 끈 수동 모드도 둡니다(촬영 화면 오른쪽 위 "자동")
+- 볼륨 버튼과 블루투스 카메라 리모컨: `AVCaptureEventInteraction`(iOS 17.2+). 시중 리모컨은 볼륨 키 신호를 보내므로 같이 처리됩니다. 뗄 때(`.ended`) 한 번 찍습니다(`ios/Leaf/Views/CameraPreview.swift`)
+- 촬영은 `AVCapturePhotoOutput` 최대 해상도(`supportedMaxPhotoDimensions` 중 가장 큰 값), HEVC 코덱으로 HEIC를 저장합니다
+- 찍히면 화면이 하얗게 번쩍이고 성공 진동이 옵니다. 실패하면 오류 진동과 안내 문구가 뜹니다
+- 촬영 화면에 있는 동안은 화면이 꺼지지 않습니다(`isIdleTimerDisabled`)
+
+## 시뮬레이터
+
+시뮬레이터에는 카메라가 없어 `SyntheticFrameSource`가 코드로 그린 종이(어두운 책상, 흰 종이, 본문 줄)와 손을 10fps로 냅니다. 3초 놓여 있다가 1.5초 동안 손이 들어와 다음 장으로 바꿉니다. 저작권 자료는 쓰지 않습니다.
+
+시뮬레이터 Vision은 문서 감지가 엉뚱한 띠를 내거나 비어 있고 feature print 거리도 실기기와 달라(2026-11-05 확인), 합성 소스가 주는 정답(테두리, 손, 장 번호)을 씁니다(`SyntheticHint`). 그래서 시뮬레이터에서는 판단 흐름과 화면만 확인되고 Vision 기준값은 확인되지 않습니다.
