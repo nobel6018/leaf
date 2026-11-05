@@ -18,6 +18,12 @@ tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 leaf-core = { path = "../crates/leaf-core" }
+leaf-vision = { path = "../crates/leaf-vision" }
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+# 검색 색인. trigram 토크나이저가 들어간 SQLite를 같이 빌드한다(docs/search.md)
+rusqlite = { version = "0.41", features = ["bundled"] }
+zip = { version = "2", default-features = false }
+tauri-plugin-dialog = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 axum = { version = "0.8", default-features = false, features = ["http1", "tokio", "json"] }
@@ -33,7 +39,17 @@ uuid = { version = "1", features = ["v4", "serde"] }
 thiserror = "2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-objc2-foundation = { version = "0.3", features = ["NSLocale", "NSString", "NSArray"] }
+objc2 = "0.6"
+block2 = "0.6"
+# 기본 기능 전체(NSLocale, NSString, NSArray 포함)
+objc2-foundation = "0.3"
+objc2-core-foundation = "0.3"
+objc2-core-graphics = "0.3"
+objc2-core-text = "0.3"
+objc2-image-io = "0.3"
+objc2-vision = "0.3"
+objc2-pdf-kit = "0.3"
+objc2-app-kit = "0.3"
 
 [dev-dependencies]
 reqwest = { version = "0.13", default-features = false, features = ["json"] }
