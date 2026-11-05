@@ -18,6 +18,7 @@ iPhone 거치대로 팜플렛과 책을 빠르게 찍고, Mac에서 보정, OCR,
 | [docs/capture.md](docs/capture.md) | iPhone 자동 촬영 설계 |
 | [docs/transfer.md](docs/transfer.md) | iPhone에서 Mac으로 보내기 |
 | [docs/ios.md](docs/ios.md) | iPhone 앱 빌드와 설치 |
+| [docs/mcp.md](docs/mcp.md) | Claude에서 스캔 문서를 찾고 읽는 MCP 서버(`mcp/`) |
 
 ## 개발
 
