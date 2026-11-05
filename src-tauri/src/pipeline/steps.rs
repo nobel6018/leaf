@@ -61,7 +61,8 @@ pub fn perspective_step(image: RgbImage, quad: Option<Quad>) -> Result<RgbImage,
 /// 3단계: 펼친 책을 접힌 선에서 왼쪽, 오른쪽으로 나눈다. 접힌 선을 확신하지 못하면(한 쪽만 찍힌 경우) 나누지 않는다
 pub fn split_step(image: RgbImage, layout: PageLayout) -> Vec<(PagePart, RgbImage)> {
     match layout {
-        PageLayout::Single => vec![(PagePart::Whole, image)],
+        // TODO(3단 접지): leaf-vision의 세 면 나누기가 들어오면 Panel(0~2)로. 그 전까지는 통째 한 장
+        PageLayout::Single | PageLayout::Trifold => vec![(PagePart::Whole, image)],
         PageLayout::Spread => match leaf_vision::split_spread(&image) {
             leaf_vision::Split::Spread { left, right, .. } => vec![(PagePart::Left, left), (PagePart::Right, right)],
             leaf_vision::Split::Single { .. } => vec![(PagePart::Whole, image)],

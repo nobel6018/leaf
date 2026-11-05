@@ -1,7 +1,7 @@
 // Rust 쪽 직렬화 모양과 같다. 원본: crates/leaf-core, src-tauri/src/{library,search,export}.rs, transfer, inbox
 export type DocumentKind = "pamphlet" | "book" | "document";
-export type PageLayout = "single" | "spread";
-export type PagePart = "whole" | "left" | "right";
+export type PageLayout = "single" | "spread" | "trifold";
+export type PagePart = "whole" | "left" | "right" | { panel: number };
 export type Dewarp = "off" | "normal" | "strong";
 export type Filter = "original" | "enhanced" | "grayscale" | "blackWhite";
 

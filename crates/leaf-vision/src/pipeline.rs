@@ -76,7 +76,8 @@ pub fn process_source(
 
     let mut gutter = None;
     let parts: Vec<(PagePart, RgbImage)> = match layout {
-        PageLayout::Single => vec![(PagePart::Whole, source.clone())],
+        // TODO(3단 접지): 접힌 선 두 개를 찾아 세 면으로 나누기. 그 전까지는 통째 한 장
+        PageLayout::Single | PageLayout::Trifold => vec![(PagePart::Whole, source.clone())],
         PageLayout::Spread => match timed(&mut timings, "split", || split_spread(source)) {
             Split::Spread { left, right, gutter: g } => {
                 gutter = Some(g);

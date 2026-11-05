@@ -10,7 +10,7 @@
 <문서 id>/
   manifest.json          iPhone만 쓴다. 페이지 목록과 촬영 정보
   raw/<페이지 id>.heic   iPhone 원본. 지우지 않는다
-  edits.json             Mac만 쓴다. 이름, 종류, 꼭짓점, 순서, 지운 페이지 (overrides.rs)
+  edits.json             Mac만 쓴다. 이름, 종류, 묶음, 태그, 꼭짓점, 순서, 지운 페이지 (overrides.rs)
   processing.json        Mac만 쓴다. 출력 페이지 목록과 처리 옵션 (processing.rs)
   pages/<출력 id>.jpg    처리된 페이지
   ocr/<출력 id>.json     OCR 결과 (ocr.rs)
@@ -22,7 +22,7 @@
 
 ## 출력 페이지 id
 
-원본 페이지 하나가 출력 페이지 하나(`single`) 또는 둘(`spread`)이 됩니다. id는 원본 페이지 id, 펼친 책은 뒤에 `-L`, `-R`을 붙입니다(`PagePart::output_id`).
+원본 페이지 하나가 출력 페이지 하나(`single`), 둘(`spread`), 셋(`trifold`)이 됩니다. id는 원본 페이지 id이고, 펼친 책은 뒤에 `-L`, `-R`, 3단 접지는 `-P1`~`-P3`을 붙입니다(`PagePart::output_id`). 접힌 선을 찾지 못하면 나누지 않고 통째 한 장(`whole`)으로 둡니다.
 
 ## manifest.json
 
@@ -37,7 +37,7 @@
 | `pages[].id` | 페이지 id |
 | `pages[].raw` | 문서 폴더 기준 상대 경로. 폴더 밖을 가리키면 거부 |
 | `pages[].capturedAt` | 촬영 시각 |
-| `pages[].layout` | `single` 또는 `spread`(펼친 두 페이지) |
+| `pages[].layout` | `single`, `spread`(펼친 두 페이지), `trifold`(펼친 3단 접지) |
 | `pages[].quad` | 테두리 네 꼭짓점. 원본 기준 0~1 좌표, 원점 왼쪽 위, EXIF 회전 적용 후. 감지 실패면 없음 |
 
 ## 규칙
@@ -46,3 +46,7 @@
 - 날짜는 밀리초 단위로 씁니다. Swift `Date`는 Double이라 그대로 쓰면 저장할 때마다 1ms씩 밀립니다(`Manifest.formatDate`)
 - 형식을 바꾸면 `SCHEMA_VERSION`을 올리고 `fixtures/`에 새 예시를 추가합니다. 옛 예시는 지우지 않습니다
 - 처리 알고리즘을 바꾸면 `PIPELINE_VERSION`을 올립니다. 낮은 버전 결과는 다시 처리 대상으로 표시합니다
+
+## 태그
+
+`edits.json`의 `tags`에 `/` 계층 태그를 둡니다(예: `분야/냉각`, `책/경제`). 정리 규칙은 sori와 같습니다(`crates/leaf-core/src/tags.rs`). 사람이 태그를 고치면 `tagsByUser`가 켜지고, 그 뒤로 AI 정리는 태그를 덮지 않습니다.

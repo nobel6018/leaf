@@ -92,4 +92,14 @@ struct ManifestTests {
         }
         return value
     }
+
+    @Test func 세_면_접지_예시를_읽는다() throws {
+        let url = URL(filePath: #filePath)
+            .deletingLastPathComponent()
+            .appending(path: "../../fixtures/manifest-v1-trifold.json")
+            .standardized
+        let manifest = try Manifest.decoder().decode(Manifest.self, from: Data(contentsOf: url))
+
+        #expect(manifest.pages[0].layout == .trifold)
+    }
 }

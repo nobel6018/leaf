@@ -62,15 +62,18 @@ pub enum PagePart {
     Whole,
     Left,
     Right,
+    /// 3단 접지의 면. 왼쪽부터 0, 1, 2. JSON은 `{"panel": 0}`
+    Panel(u8),
 }
 
 impl PagePart {
-    /// 출력 페이지 id: 원본 페이지 id 뒤에 `-L`, `-R`. 통째면 원본 id 그대로
+    /// 출력 페이지 id: 원본 페이지 id 뒤에 `-L`, `-R`, 3단 접지는 `-P1`~`-P3`. 통째면 원본 id 그대로
     pub fn output_id(self, source: Uuid) -> String {
         match self {
             PagePart::Whole => source.to_string(),
             PagePart::Left => format!("{source}-L"),
             PagePart::Right => format!("{source}-R"),
+            PagePart::Panel(index) => format!("{source}-P{}", index + 1),
         }
     }
 }

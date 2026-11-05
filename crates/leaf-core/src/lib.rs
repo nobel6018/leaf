@@ -10,6 +10,7 @@ pub mod ocr;
 pub mod overrides;
 pub mod processing;
 pub mod summary;
+pub mod tags;
 pub mod transfer;
 
 use std::fs;
@@ -54,6 +55,8 @@ pub enum PageLayout {
     Single,
     /// 펼친 두 페이지. Mac이 가운데 접힌 선에서 나눈다
     Spread,
+    /// 펼친 3단 접지 팜플렛. Mac이 접힌 선 두 개에서 세 면으로 나눈다
+    Trifold,
 }
 
 /// 원본 사진 기준 정규화 좌표(0~1). 원점은 왼쪽 위, 사진의 EXIF 회전을 적용한 뒤의 방향이다

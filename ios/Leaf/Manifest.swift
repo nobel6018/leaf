@@ -18,6 +18,8 @@ enum DocumentKind: String, Codable, Sendable {
 enum PageLayout: String, Codable, Sendable {
     case single
     case spread
+    /// 펼친 3단 접지 팜플렛. Mac이 세 면으로 나눈다
+    case trifold
 }
 
 struct NormalizedPoint: Codable, Equatable, Sendable {

@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "2b7e1c9a-4d3f-4b6a-8e1d-9c0f2a3b4c5d",
+  "name": "합성 예시_3단 접지",
+  "kind": "pamphlet",
+  "session": "2026 예시박람회",
+  "createdAt": "2026-11-05T01:20:00Z",
+  "pages": [
+    {
+      "id": "1e9f4b7a-3c2d-4e5f-8a6b-7c8d9e0f1a2b",
+      "raw": "raw/1e9f4b7a-3c2d-4e5f-8a6b-7c8d9e0f1a2b.heic",
+      "capturedAt": "2026-11-05T01:20:03.412Z",
+      "layout": "trifold",
+      "quad": {
+        "topLeft": {
+          "x": 0.08,
+          "y": 0.06
+        },
+        "topRight": {
+          "x": 0.93,
+          "y": 0.05
+        },
+        "bottomRight": {
+          "x": 0.95,
+          "y": 0.94
+        },
+        "bottomLeft": {
+          "x": 0.06,
+          "y": 0.95
+        }
+      }
+    }
+  ]
+}

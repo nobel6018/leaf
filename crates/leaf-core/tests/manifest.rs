@@ -71,3 +71,16 @@ fn 범위를_벗어난_꼭짓점은_거부한다() {
 
     assert!(matches!(result, Err(ManifestError::InvalidPage { .. })));
 }
+
+#[test]
+fn 세_면_접지와_면_출력_id를_읽고_쓴다() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../fixtures/manifest-v1-trifold.json");
+    let dir = document_with(&fs::read_to_string(path).unwrap());
+
+    let manifest = Manifest::load(dir.path()).unwrap();
+
+    assert_eq!(manifest.pages[0].layout, PageLayout::Trifold);
+    let part = leaf_core::processing::PagePart::Panel(2);
+    assert_eq!(serde_json::to_string(&part).unwrap(), r#"{"panel":2}"#);
+    assert!(part.output_id(manifest.pages[0].id).ends_with("-P3"));
+}

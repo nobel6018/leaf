@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { api, compact, fileUrl, KIND_LABEL } from "../api";
 import type {
+  PagePart,
   DocumentDetail,
   DocumentKind,
   Edits,
@@ -38,6 +39,11 @@ interface Item {
 const THUMB_ROW = 196;
 
 const PART_LABEL = { whole: "", left: "왼쪽", right: "오른쪽" } as const;
+
+/** 출력 페이지가 원본의 어느 부분인지. 3단 접지는 왼쪽부터 1~3면 */
+function partLabel(part: PagePart): string {
+  return typeof part === "object" ? `${part.panel + 1}면` : PART_LABEL[part];
+}
 
 export function DocumentView({ documentId, initialOutputId, initialQuery, revision, progress, onBack, onChanged, onError }: Props) {
   const [detail, setDetail] = useState<DocumentDetail | null>(null);
@@ -240,7 +246,7 @@ export function DocumentView({ documentId, initialOutputId, initialQuery, revisi
               </div>
               <span className="thumb-label">
                 {item.pageIndex + 1}
-                {item.output && PART_LABEL[item.output.part] && ` ${PART_LABEL[item.output.part]}`}
+                {item.output && partLabel(item.output.part) && ` ${partLabel(item.output.part)}`}
               </span>
             </button>
           )}
