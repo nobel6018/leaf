@@ -13,6 +13,7 @@ import type {
   ProcessOptions,
   TransferStatus,
 } from "./types";
+import type { BookReport, SortResult } from "./views/BookPanel";
 
 /** 다른 팀원 모듈(전송, AI)의 명령은 아직 등록되지 않았을 수 있다. 그때는 null */
 export async function invokeOptional<T>(command: string, args?: Record<string, unknown>): Promise<T | null> {
@@ -50,6 +51,10 @@ export const api = {
   getSummary: (documentId: string) => invoke<PamphletSummary | null>("get_summary", { documentId }),
   saveSummaryField: (documentId: string, field: string, value: unknown) =>
     invoke<PamphletSummary>("save_summary_field", { documentId, edit: { field, value } }),
+
+  // 책 쪽 번호 확인(src-tauri/src/book.rs, docs/book.md). 정렬은 사용자가 누를 때만
+  bookPageReport: (documentId: string) => invoke<BookReport>("book_page_report", { documentId }),
+  sortByPageNumbers: (documentId: string) => invoke<SortResult>("sort_by_page_numbers", { documentId }),
 
   // 전송(mac-transfer 담당)
   transferStatus: () => invokeOptional<TransferStatus>("transfer_status"),

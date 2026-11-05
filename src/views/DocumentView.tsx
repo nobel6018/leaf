@@ -7,6 +7,7 @@ import type {
   Edits,
   OcrPage,
   OutputView,
+  PageLayout,
   PageView,
   ProcessOptions,
   Progress,
@@ -17,6 +18,7 @@ import { stateLabel } from "./LibraryView";
 import { QuadEditor } from "./QuadEditor";
 import { ExportPanel } from "./ExportPanel";
 import { AiPanel } from "./AiPanel";
+import { BookPanel } from "./BookPanel";
 
 interface Props {
   documentId: string;
@@ -150,10 +152,10 @@ export function DocumentView({ documentId, initialOutputId, initialQuery, revisi
   const restorePage = (pageId: string) =>
     saveEdits((edits) => ({ ...edits, deletedPages: (edits.deletedPages ?? []).filter((id) => id !== pageId) }));
 
-  const toggleLayout = (page: PageView) =>
+  const setLayout = (page: PageView, layout: PageLayout) =>
     saveEdits((edits) => ({
       ...edits,
-      layouts: { ...(edits.layouts ?? {}), [page.id]: page.layout === "single" ? "spread" : "single" },
+      layouts: { ...(edits.layouts ?? {}), [page.id]: layout },
     }));
 
   const saveQuad = async (pageId: string, quad: Quad | null) => {
@@ -258,9 +260,11 @@ export function DocumentView({ documentId, initialOutputId, initialQuery, revisi
               <button className="secondary" onClick={() => setEditingQuad(current.page)}>
                 꼭짓점 고치기
               </button>
-              <button className="secondary" onClick={() => toggleLayout(current.page)}>
-                {current.page.layout === "single" ? "펼친 두 쪽으로" : "한 쪽으로"}
-              </button>
+              <select aria-label="배치" value={current.page.layout} onChange={(e) => setLayout(current.page, e.target.value as PageLayout)}>
+                <option value="single">한 쪽</option>
+                <option value="spread">펼친 두 쪽</option>
+                <option value="trifold">3단 접지</option>
+              </select>
               <button className="secondary" disabled={current.pageIndex === 0} onClick={() => movePage(current.page.id, -1)}>
                 앞으로
               </button>
@@ -333,6 +337,22 @@ export function DocumentView({ documentId, initialOutputId, initialQuery, revisi
               documentId={documentId}
               ready={ready}
               onRename={(name) => saveEdits((edits) => ({ ...edits, name }))}
+              onError={onError}
+            />
+          )}
+          {summary.kind === "book" && (
+            <BookPanel
+              documentId={documentId}
+              revision={`${revision}:${detail.pages.map((p) => p.outputs.map((o) => o.processedAt).join()).join()}`}
+              ready={ready}
+              onSelect={(outputId) => {
+                const index = items.findIndex((i) => i.output?.id === outputId);
+                if (index >= 0) setSelected(index);
+              }}
+              onSorted={() => {
+                load();
+                onChanged();
+              }}
               onError={onError}
             />
           )}

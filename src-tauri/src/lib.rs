@@ -3,6 +3,7 @@
 //! @see docs/architecture.md
 
 mod ai;
+mod book;
 pub mod busy;
 mod download;
 mod export;
@@ -93,6 +94,8 @@ pub fn run() {
             models::models_status,
             models::install_models,
             models::cancel_model_install,
+            book::book_page_report,
+            book::sort_by_page_numbers,
         ])
         .run(tauri::generate_context!())
         .expect("leaf 앱을 시작하지 못했다");

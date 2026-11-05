@@ -190,3 +190,25 @@ mark { background: #ffe58a; border-radius: 2px; }
 /* 보정 모델 (src/views/ModelsPanel.tsx) */
 .model-list { list-style: none; padding: 0; margin: 8px 0; }
 .model-list li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; }
+
+/* 책 쪽 번호 확인 (src/views/BookPanel.tsx, docs/book.md) */
+.book-panel h4 { margin: 12px 0 4px; font-size: 13px; }
+.book-summary { margin: 0 0 6px; }
+.book-list { list-style: none; padding: 0; margin: 0; }
+.book-list li { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; border-top: 1px solid var(--line); }
+.book-list li.missing > span:first-child { color: var(--danger); font-weight: 600; }
+.book-list li.duplicate > span:first-child, .book-list li.order > span:first-child { font-weight: 600; }
+.book-jumps { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.book-jumps .ghost, .book-list li > .ghost { padding: 0 8px; }
+.book-sort { width: 100%; margin-top: 12px; }
+.book-toggle { width: 100%; margin-top: 4px; }
+.book-all { max-height: 320px; overflow: auto; }
+.book-all li { border-top: 1px solid var(--line); }
+.book-row { display: flex; align-items: center; gap: 8px; width: 100%; padding: 0 4px; text-align: left; color: inherit; }
+.book-index { width: 32px; color: var(--muted); font-size: 12px; }
+.book-number { flex: 1; font-variant-numeric: tabular-nums; }
+.book-number.none { color: var(--muted); }
+.book-flags { display: flex; gap: 4px; }
+.book-flag { font-size: 11px; padding: 2px 6px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+.book-flag.duplicate, .book-flag.order { background: #f7e1df; color: var(--danger); }
+.book-flag.low { background: #f3eedc; color: var(--muted); }
