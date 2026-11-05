@@ -30,6 +30,9 @@ struct MacAddress: Codable, Equatable, Sendable {
 @MainActor
 @Observable
 final class MacBrowser {
+    /// Mac이 Bonjour TXT `api`로 알리는 전송 API 버전
+    nonisolated static let supportedAPI = "1"
+
     private(set) var macs: [DiscoveredMac] = []
     private(set) var isBrowsing = false
     private(set) var failure: String?
@@ -40,13 +43,17 @@ final class MacBrowser {
         guard browser == nil else { return }
         let parameters = NWParameters()
         parameters.includePeerToPeer = false
-        let browser = NWBrowser(for: .bonjour(type: "_leaf._tcp", domain: nil), using: parameters)
+        let browser = NWBrowser(for: .bonjourWithTXTRecord(type: "_leaf._tcp", domain: nil), using: parameters)
         browser.stateUpdateHandler = { [weak self] state in
             Task { @MainActor in self?.handle(state) }
         }
         browser.browseResultsChangedHandler = { [weak self] results, _ in
             let macs = results.compactMap { result -> DiscoveredMac? in
                 guard case let .service(name, _, _, _) = result.endpoint else { return nil }
+                // TXT api가 이 앱이 아는 버전과 다르면 API가 바뀐 Mac이라 고르지 않는다. TXT가 없으면 받아 준다
+                if case let .bonjour(txt) = result.metadata, let api = txt["api"], api != MacBrowser.supportedAPI {
+                    return nil
+                }
                 return DiscoveredMac(name: name, endpoint: result.endpoint)
             }
             .sorted { $0.name < $1.name }

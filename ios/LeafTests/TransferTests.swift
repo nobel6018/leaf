@@ -138,3 +138,45 @@ struct ICloudFolderTests {
         #expect(!ICloudExporter.isImportedByMac(documentID: UUID(), leafRoot: missingRoot))
     }
 }
+
+// Mac 서버(src-tauri/src/transfer/server.rs)의 응답 모양과 맞춘다
+struct TransferClientTests {
+    private let client = TransferClient(baseURL: URL(string: "http://192.168.0.3:52100")!)
+
+    @Test func 서명하는_경로는_요청_줄에_실리는_경로와_같다() {
+        let path = "/v1/documents/7d1c2a4e-0f3b-4a8e-9c61-2b5d8e3f1a90/files/raw/1e9f4b7a-3c2d-4e5f-8a6b-7c8d9e0f1a2b.heic"
+
+        let request = client.request("PUT", path)
+
+        #expect(request.url?.path(percentEncoded: true) == path)
+        #expect(request.url?.absoluteString == "http://192.168.0.3:52100" + path)
+    }
+
+    @Test func 짝짓기_코드_틀림과_창_닫힘을_구별한다() {
+        let wrong = Data(#"{"error":"wrong_code","message":"코드가 맞지 않는다"}"#.utf8)
+        let closed = Data(#"{"error":"pairing_closed","message":"짝짓기 창이 열려 있지 않다"}"#.utf8)
+
+        #expect(TransferError.from(status: 401, body: wrong) == .wrongCode)
+        #expect(TransferError.from(status: 403, body: closed) == .pairingClosed)
+        #expect(TransferError.wrongCode.localizedDescription != TransferError.pairingClosed.localizedDescription)
+    }
+
+    @Test func 원본이_덜_왔다는_409에서_빠진_경로를_읽는다() {
+        let body = Data(#"{"error":"missing_files","message":"원본이 덜 왔다","missing":["raw/a.heic","raw/b.heic"]}"#.utf8)
+
+        #expect(TransferError.from(status: 409, body: body) == .missingFiles(["raw/a.heic", "raw/b.heic"]))
+    }
+
+    @Test func 그_밖의_오류_코드를_읽는다() {
+        let unauthorized = Data(#"{"error":"unauthorized","message":"서명이 맞지 않는다"}"#.utf8)
+        let large = Data(#"{"error":"too_large","message":"본문이 너무 크다"}"#.utf8)
+        let version = Data(#"{"error":"unsupported_version","message":"x"}"#.utf8)
+        let bad = Data(#"{"error":"bad_request","message":"raw/ 밖 경로"}"#.utf8)
+
+        #expect(TransferError.from(status: 401, body: unauthorized) == .unauthorized)
+        #expect(TransferError.from(status: 413, body: large) == .tooLarge)
+        #expect(TransferError.from(status: 422, body: version) == .unsupportedVersion)
+        #expect(TransferError.from(status: 400, body: bad) == .http(status: 400, code: "bad_request", message: "raw/ 밖 경로"))
+        #expect(TransferError.from(status: 401, body: Data("not json".utf8)) == .unauthorized)
+    }
+}

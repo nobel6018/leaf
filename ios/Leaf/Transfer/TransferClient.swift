@@ -5,18 +5,54 @@ import Foundation
 // @see docs/transfer.md
 
 enum TransferError: Error, LocalizedError, Equatable {
-    /// 서명이 맞지 않는다. Mac에서 짝짓기를 지웠거나 토큰이 바뀌었다. 다시 짝지어야 한다
+    /// 서명이 맞지 않거나 Mac이 이 기기를 모른다(Mac에서 짝을 끊었다). 다시 짝지어야 한다
     case unauthorized
-    case http(status: Int, message: String)
+    /// 짝짓기 코드가 틀렸다. 창은 아직 열려 있다(5번까지)
+    case wrongCode
+    /// 짝짓기 창이 닫혔다(안 열림, 2분 지남, 5번 틀림, 이미 씀). Mac에서 새 코드를 받아야 한다
+    case pairingClosed
+    /// manifest를 보냈는데 Mac에 원본이 덜 왔다. 빠진 상대 경로
+    case missingFiles([String])
+    case tooLarge
+    /// Mac 앱이 이 iPhone 앱보다 오래돼 manifest 버전을 모른다
+    case unsupportedVersion
+    case http(status: Int, code: String, message: String)
     case invalidResponse
     case notPaired
 
     var errorDescription: String? {
         switch self {
         case .unauthorized: "Mac이 이 iPhone을 알아보지 못합니다. 설정에서 다시 짝지어 주세요"
-        case let .http(status, message): "Mac 응답 \(status): \(message)"
+        case .wrongCode: "코드가 맞지 않습니다. Mac에 보이는 6자리를 다시 넣어 주세요"
+        case .pairingClosed: "Mac의 짝짓기 창이 닫혔습니다. Mac 설정에서 \"iPhone 연결\"을 다시 눌러 새 코드를 받아 주세요"
+        case let .missingFiles(paths): "Mac에 원본 \(paths.count)장이 덜 왔습니다"
+        case .tooLarge: "파일이 너무 커서 Mac이 받지 않습니다(원본 한 장 200MB까지)"
+        case .unsupportedVersion: "Mac의 leaf가 오래돼 이 문서를 읽지 못합니다. Mac 앱을 업데이트해 주세요"
+        case let .http(status, code, message): "Mac 응답 \(status) \(code): \(message)"
         case .invalidResponse: "Mac 응답을 읽지 못했습니다"
         case .notPaired: "짝지은 Mac이 없습니다"
+        }
+    }
+
+    /// Mac 오류 본문 `{ error, message, missing? }`을 읽는다
+    static func from(status: Int, body: Data) -> TransferError {
+        struct Body: Decodable {
+            var error: String
+            var message: String?
+            var missing: [String]?
+        }
+        guard let parsed = try? JSONDecoder().decode(Body.self, from: body) else {
+            if status == 401 { return .unauthorized }
+            return .http(status: status, code: "", message: String(data: body.prefix(300), encoding: .utf8) ?? "")
+        }
+        switch (status, parsed.error) {
+        case (401, "wrong_code"): return .wrongCode
+        case (401, _): return .unauthorized
+        case (403, "pairing_closed"): return .pairingClosed
+        case (409, "missing_files"): return .missingFiles(parsed.missing ?? [])
+        case (413, _): return .tooLarge
+        case (422, _): return .unsupportedVersion
+        default: return .http(status: status, code: parsed.error, message: parsed.message ?? "")
         }
     }
 }
@@ -56,6 +92,9 @@ enum UploadPlan {
 }
 
 struct TransferClient: Sendable {
+    /// manifest 409(원본 덜 옴) 뒤 빠진 원본을 다시 보내는 횟수
+    static let missingFileRetries = 2
+
     let baseURL: URL
     let session: URLSession
 
@@ -85,7 +124,7 @@ struct TransferClient: Sendable {
     func status(of documentID: UUID, signer: RequestSigner) async throws -> [String: String] {
         let path = "/v1/documents/\(documentID.uuidString.lowercased())/status"
         var request = request("GET", path)
-        signer.sign(&request, path: path, bodySha256: RequestSigner.sha256Hex(Data()))
+        sign(&request, signer: signer, bodySha256: RequestSigner.sha256Hex(Data()))
         let (data, response) = try await session.data(for: request)
         // 처음 보내는 문서는 Mac이 모를 수 있다
         if (response as? HTTPURLResponse)?.statusCode == 404 { return [:] }
@@ -97,7 +136,7 @@ struct TransferClient: Sendable {
         let path = "/v1/documents/\(documentID.uuidString.lowercased())/files/\(item.relativePath)"
         var request = request("PUT", path)
         request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
-        signer.sign(&request, path: path, bodySha256: item.sha256)
+        sign(&request, signer: signer, bodySha256: item.sha256)
         let (data, response) = try await session.upload(for: request, fromFile: item.fileURL)
         try check(response, data)
     }
@@ -106,7 +145,7 @@ struct TransferClient: Sendable {
         let path = "/v1/documents/\(documentID.uuidString.lowercased())/manifest"
         var request = request("PUT", path)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        signer.sign(&request, path: path, bodySha256: RequestSigner.sha256Hex(manifest))
+        sign(&request, signer: signer, bodySha256: RequestSigner.sha256Hex(manifest))
         let (data, response) = try await session.upload(for: request, from: manifest)
         try check(response, data)
     }
@@ -137,12 +176,27 @@ struct TransferClient: Sendable {
             try await putFile(item, documentID: documentID, signer: signer)
             await progress(Double(index + 1) / total)
         }
-        try await putManifest(manifestData, documentID: documentID, signer: signer)
+        // Mac이 원본이 덜 왔다고 하면(409) 빠진 것만 다시 보내고 manifest를 다시 보낸다
+        var attempts = 0
+        while true {
+            do {
+                try await putManifest(manifestData, documentID: documentID, signer: signer)
+                break
+            } catch let TransferError.missingFiles(paths) where attempts < Self.missingFileRetries {
+                attempts += 1
+                let resend = items.filter { paths.contains($0.relativePath) }
+                guard !resend.isEmpty else { throw TransferError.missingFiles(paths) }
+                for item in resend {
+                    try Task.checkCancellation()
+                    try await putFile(item, documentID: documentID, signer: signer)
+                }
+            }
+        }
         await progress(1)
         return manifest
     }
 
-    private func request(_ method: String, _ path: String) -> URLRequest {
+    func request(_ method: String, _ path: String) -> URLRequest {
         var request = URLRequest(url: baseURL.appending(path: path))
         request.httpMethod = method
         request.timeoutInterval = 30
@@ -151,9 +205,14 @@ struct TransferClient: Sendable {
 
     private func check(_ response: URLResponse, _ data: Data) throws {
         guard let http = response as? HTTPURLResponse else { throw TransferError.invalidResponse }
-        if http.statusCode == 401 { throw TransferError.unauthorized }
         guard (200 ..< 300).contains(http.statusCode) else {
-            throw TransferError.http(status: http.statusCode, message: String(data: data.prefix(300), encoding: .utf8) ?? "")
+            throw TransferError.from(status: http.statusCode, body: data)
         }
+    }
+
+    /// Mac은 요청 줄의 경로를 퍼센트 인코딩을 풀지 않고 그대로 서명 대상으로 쓴다. 보낼 URL에서 그 문자열을 꺼내 서명한다
+    private func sign(_ request: inout URLRequest, signer: RequestSigner, bodySha256: String) {
+        let path = request.url?.path(percentEncoded: true) ?? ""
+        signer.sign(&request, path: path, bodySha256: bodySha256)
     }
 }
