@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>NSCalendarsFullAccessUsageDescription</key>
+  <string>묶음이 빈 문서를 찍은 시각과 겹치는 일정을 찾아 묶음 이름으로 제안합니다. "일정에서 묶음 찾기"를 누를 때만 봅니다.</string>
+  <key>NSCalendarsUsageDescription</key>
+  <string>묶음이 빈 문서를 찍은 시각과 겹치는 일정을 찾아 묶음 이름으로 제안합니다. "일정에서 묶음 찾기"를 누를 때만 봅니다.</string>
+</dict>
+</plist>

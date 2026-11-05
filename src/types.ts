@@ -52,6 +52,9 @@ export interface Edits {
   layouts?: Record<string, PageLayout>;
   deletedPages?: string[];
   pageOrder?: string[];
+  /** `/` 계층 태그. 고칠 때는 api.setDocumentTags를 쓴다(tagsByUser를 함께 켠다) */
+  tags?: string[];
+  tagsByUser?: boolean;
 }
 
 export interface OutputView {
@@ -221,4 +224,49 @@ export interface ImportedDocument {
 export interface ImportResult {
   documents: ImportedDocument[];
   skipped: { path: string; reason: string }[];
+}
+
+// 질문, 태그, 캘린더 묶음 추천 (src-tauri/src/{ask,tagger,calendar}.rs, docs/ask.md, docs/organize.md)
+export interface AskSource {
+  /** 답의 [D3 p.12]에서 D3 */
+  key: string;
+  documentId: string;
+  name: string;
+  /** 페이지 번호 순서의 출력 페이지 id. pages[11]이 p.12 */
+  pages: string[];
+}
+
+export interface AskAnswer {
+  markdown: string;
+  sources: AskSource[];
+}
+
+export interface DocumentTags {
+  tags: string[];
+  tagsByUser: boolean;
+}
+
+export interface TagSuggestion {
+  tags: string[];
+  /** edits.json에 썼는지. 사람이 고친 태그가 있으면 제안만 */
+  applied: boolean;
+}
+
+export type CalendarAccess = "notDetermined" | "granted" | "denied" | "unsupported";
+
+export interface CalendarEvent {
+  title: string;
+  start: string;
+  end: string;
+  allDay: boolean;
+  location: string | null;
+  calendar: string | null;
+}
+
+export interface SessionSuggestion {
+  access: CalendarAccess;
+  candidates: CalendarEvent[];
+  chosen: number | null;
+  session: string | null;
+  reason: string;
 }

@@ -53,6 +53,8 @@ pub fn summarize_if_pamphlet(app: &tauri::AppHandle, document_id: &str) {
             return;
         }
         let _ = app.emit("summary-changed", serde_json::json!({ "documentId": document_id }));
+        // 요약 뒤 AI 태그(팜플렛만, 사람이 고친 태그는 그대로). @see docs/organize.md
+        crate::tagger::organize_after_summary(&app, &document_id);
     });
 }
 

@@ -281,14 +281,22 @@ pub fn save_edits(
     app: tauri::AppHandle,
     pipeline: tauri::State<'_, Pipeline>,
     document_id: String,
-    edits: Edits,
+    mut edits: Edits,
 ) -> Result<(), String> {
     let dir = document_dir(&app, &document_id)?;
     let manifest = Manifest::load(&dir).map_err(|e| e.to_string())?;
     let merged = edits.apply(&manifest);
     // Edits는 꼭짓점 범위를 검사하지 않으므로 manifest 검증 규칙으로 한 번 더 본다
     merged.validate().map_err(|e| e.to_string())?;
-    edits.save(&dir).map_err(|e| e.to_string())?;
+    {
+        // 태그는 태그 명령(tagger.rs)만 쓴다. 화면이 들고 있던 옛 edits로 덮으면 AI가 방금 붙인 태그가 사라진다.
+        // 같은 잠금 안에서 디스크의 태그를 옮겨 담아 저장한다(docs/organize.md)
+        let _lock = crate::tagger::EDITS_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let current = Edits::load(&dir).map_err(|e| e.to_string())?;
+        edits.tags = current.tags;
+        edits.tags_by_user = current.tags_by_user;
+        edits.save(&dir).map_err(|e| e.to_string())?;
+    }
     pipeline.enqueue(&document_id, false);
     crate::search::refresh_document(&app, &document_id);
     Ok(())

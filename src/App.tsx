@@ -12,6 +12,7 @@ import { DocumentView } from "./views/DocumentView";
 import { QuickOpen } from "./views/QuickOpen";
 import { SearchView } from "./views/SearchView";
 import { SettingsView } from "./views/SettingsView";
+import { AskWindow } from "./views/AskWindow";
 
 export type Route =
   | { view: "library" }
@@ -384,6 +385,8 @@ export default function App() {
           <div className="drop-card">놓으면 보관함으로 가져옵니다 (jpg, png, heic, PDF)</div>
         </div>
       )}
+      {/* ⌘J 모든 문서에 질문(docs/ask.md). 다른 곳에서는 openAsk()로 연다 */}
+      <AskWindow documents={documents} onOpen={(id, outputId) => setRoute({ view: "document", id, outputId: outputId ?? undefined })} />
     </div>
   );
 }
