@@ -1,0 +1,85 @@
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import type {
+  DocumentDetail,
+  DocumentHits,
+  DocumentSummary,
+  Edits,
+  ExportFile,
+  ExportFormat,
+  InboxStatus,
+  OcrPage,
+  PairingCode,
+  PamphletSummary,
+  ProcessOptions,
+  TransferStatus,
+} from "./types";
+
+/** 다른 팀원 모듈(전송, AI)의 명령은 아직 등록되지 않았을 수 있다. 그때는 null */
+export async function invokeOptional<T>(command: string, args?: Record<string, unknown>): Promise<T | null> {
+  try {
+    return await invoke<T>(command, args);
+  } catch (e) {
+    const message = String(e);
+    if (message.includes("not found") || message.includes("unknown command")) return null;
+    throw e;
+  }
+}
+
+/** 파일 경로를 웹뷰 주소로. 같은 경로에 다시 쓴 그림이 캐시에 남지 않게 버전을 붙인다 */
+export function fileUrl(path: string, version?: string): string {
+  const url = convertFileSrc(path);
+  return version ? `${url}?v=${encodeURIComponent(version)}` : url;
+}
+
+export const api = {
+  listDocuments: () => invoke<DocumentSummary[]>("list_documents"),
+  getDocument: (documentId: string) => invoke<DocumentDetail>("get_document", { documentId }),
+  saveEdits: (documentId: string, edits: Edits) => invoke<void>("save_edits", { documentId, edits }),
+  setOptions: (documentId: string, options: ProcessOptions) =>
+    invoke<void>("set_processing_options", { documentId, options }),
+  reprocess: (documentId: string, force: boolean) => invoke<void>("reprocess_document", { documentId, force }),
+  rawPreview: (documentId: string, pageId: string) => invoke<string>("raw_preview", { documentId, pageId }),
+  getOcr: (documentId: string, outputId: string) => invoke<OcrPage | null>("get_ocr", { documentId, outputId }),
+  search: (query: string) => invoke<DocumentHits[]>("search_library", { query }),
+  exportDocument: (documentId: string, format: ExportFormat) =>
+    invoke<ExportFile>("export_document", { documentId, format }),
+  listExports: (documentId: string) => invoke<ExportFile[]>("list_exports", { documentId }),
+  revealExport: (path: string) => invoke<void>("reveal_export", { path }),
+  shareExport: (path: string, x: number, y: number) => invoke<void>("share_export", { path, x, y }),
+  saveExportAs: (path: string) => invoke<string | null>("save_export_as", { path }),
+  getSummary: (documentId: string) => invoke<PamphletSummary | null>("get_summary", { documentId }),
+  saveSummaryField: (documentId: string, field: string, value: unknown) =>
+    invoke<PamphletSummary>("save_summary_field", { documentId, edit: { field, value } }),
+
+  // 전송(mac-transfer 담당)
+  transferStatus: () => invokeOptional<TransferStatus>("transfer_status"),
+  startPairing: () => invokeOptional<PairingCode>("start_pairing"),
+  cancelPairing: () => invokeOptional<void>("cancel_pairing"),
+  removePairedDevice: (deviceId: string) => invokeOptional<void>("remove_paired_device", { deviceId }),
+  icloudInboxStatus: () => invokeOptional<InboxStatus>("icloud_inbox_status"),
+
+  // AI 정리(ai 담당, 리드가 연결)
+  summarizePamphlet: (documentId: string) => invokeOptional<PamphletSummary>("summarize_pamphlet", { documentId }),
+  suggestDocumentName: (documentId: string) =>
+    invokeOptional<{ name: string } | string | null>("suggest_document_name", { documentId }),
+  exportNotionCsv: (session: string) => invokeOptional<unknown>("export_notion_csv", { session }),
+  exportDocx: (documentId: string) => invokeOptional<unknown>("export_docx", { documentId }),
+  exportAiBundle: (documentId: string) => invokeOptional<unknown>("export_ai_bundle", { documentId }),
+};
+
+export const KIND_LABEL: Record<string, string> = {
+  pamphlet: "팜플렛",
+  book: "책",
+  document: "문서",
+};
+
+/** 화면 강조와 검색이 같은 규칙: 공백 빼고 소문자 (src-tauri/src/search.rs compact) */
+export function compact(s: string): string {
+  return s.replace(/\s+/g, "").toLowerCase();
+}
+
+export function formatBytes(n: number): string {
+  if (n < 1024) return `${n}B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)}KB`;
+  return `${(n / 1024 / 1024).toFixed(1)}MB`;
+}

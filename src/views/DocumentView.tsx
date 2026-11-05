@@ -1,0 +1,434 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { api, compact, fileUrl, KIND_LABEL } from "../api";
+import type {
+  DocumentDetail,
+  DocumentKind,
+  Edits,
+  OcrPage,
+  OutputView,
+  PageView,
+  ProcessOptions,
+  Progress,
+  Quad,
+} from "../types";
+import { VirtualList } from "../components/VirtualList";
+import { stateLabel } from "./LibraryView";
+import { QuadEditor } from "./QuadEditor";
+import { ExportPanel } from "./ExportPanel";
+import { AiPanel } from "./AiPanel";
+
+interface Props {
+  documentId: string;
+  initialOutputId?: string;
+  initialQuery?: string;
+  revision: number;
+  progress?: Progress;
+  onBack: () => void;
+  onChanged: () => void;
+  onError: (e: string) => void;
+}
+
+/** 썸네일 줄 하나. 출력 페이지가 없으면(처리 전) 원본 페이지 자리를 둔다 */
+interface Item {
+  page: PageView;
+  output: OutputView | null;
+  pageIndex: number;
+}
+
+const THUMB_ROW = 196;
+
+const PART_LABEL = { whole: "", left: "왼쪽", right: "오른쪽" } as const;
+
+export function DocumentView({ documentId, initialOutputId, initialQuery, revision, progress, onBack, onChanged, onError }: Props) {
+  const [detail, setDetail] = useState<DocumentDetail | null>(null);
+  const [selected, setSelected] = useState(0);
+  const [editingQuad, setEditingQuad] = useState<PageView | null>(null);
+  const [ocr, setOcr] = useState<OcrPage | null>(null);
+  const [showText, setShowText] = useState(false);
+  const [highlight, setHighlight] = useState(initialQuery ?? "");
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
+  const [sessionDraft, setSessionDraft] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    api
+      .getDocument(documentId)
+      .then(setDetail)
+      .catch((e) => onError(String(e)));
+  }, [documentId, onError]);
+
+  useEffect(load, [load, revision]);
+
+  const items: Item[] = useMemo(() => {
+    if (!detail) return [];
+    return detail.pages.flatMap((page, pageIndex): Item[] =>
+      page.outputs.length > 0
+        ? page.outputs.map((output) => ({ page, output, pageIndex }))
+        : [{ page, output: null, pageIndex }],
+    );
+  }, [detail]);
+
+  // 검색에서 들어오면 그 페이지를 먼저 보여 준다
+  useEffect(() => {
+    if (!initialOutputId) return;
+    const index = items.findIndex((i) => i.output?.id === initialOutputId);
+    if (index >= 0) setSelected(index);
+  }, [items, initialOutputId]);
+
+  const current = items[Math.min(selected, Math.max(0, items.length - 1))];
+
+  useEffect(() => {
+    setOcr(null);
+    if (!current?.output?.hasOcr) return;
+    api
+      .getOcr(documentId, current.output.id)
+      .then(setOcr)
+      .catch((e) => onError(String(e)));
+  }, [documentId, current?.output?.id, current?.output?.hasOcr, current?.output?.processedAt, onError]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || editingQuad) return;
+      if (e.key === "ArrowDown" || e.key === "ArrowRight") setSelected((s) => Math.min(items.length - 1, s + 1));
+      if (e.key === "ArrowUp" || e.key === "ArrowLeft") setSelected((s) => Math.max(0, s - 1));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [items.length, editingQuad]);
+
+  const saveEdits = useCallback(
+    async (change: (edits: Edits) => Edits) => {
+      if (!detail) return;
+      try {
+        await api.saveEdits(documentId, change(structuredClone(detail.edits)));
+        load();
+        onChanged();
+      } catch (e) {
+        onError(String(e));
+      }
+    },
+    [detail, documentId, load, onChanged, onError],
+  );
+
+  if (!detail) {
+    return (
+      <section className="page">
+        <button className="ghost back" onClick={onBack}>
+          보관함으로
+        </button>
+        <p className="empty">여는 중</p>
+      </section>
+    );
+  }
+
+  const summary = detail.summary;
+  const label = stateLabel(summary.state, progress);
+  const ready = detail.pages.some((p) => p.outputs.length > 0);
+  const pageIds = detail.pages.map((p) => p.id);
+
+  const movePage = (pageId: string, delta: number) =>
+    saveEdits((edits) => {
+      const order = [...pageIds];
+      const from = order.indexOf(pageId);
+      const to = from + delta;
+      if (from < 0 || to < 0 || to >= order.length) return edits;
+      [order[from], order[to]] = [order[to], order[from]];
+      setSelected((s) => Math.max(0, s + delta * (current?.page.outputs.length || 1)));
+      return { ...edits, pageOrder: order };
+    });
+
+  const deletePage = (pageId: string) => {
+    if (!window.confirm("이 페이지를 목록에서 뺄까요? 원본 사진은 남아 있어 아래 '지운 페이지'에서 되살릴 수 있습니다.")) return;
+    saveEdits((edits) => ({ ...edits, deletedPages: [...(edits.deletedPages ?? []), pageId] }));
+  };
+
+  const restorePage = (pageId: string) =>
+    saveEdits((edits) => ({ ...edits, deletedPages: (edits.deletedPages ?? []).filter((id) => id !== pageId) }));
+
+  const toggleLayout = (page: PageView) =>
+    saveEdits((edits) => ({
+      ...edits,
+      layouts: { ...(edits.layouts ?? {}), [page.id]: page.layout === "single" ? "spread" : "single" },
+    }));
+
+  const saveQuad = async (pageId: string, quad: Quad | null) => {
+    await saveEdits((edits) => {
+      const quads = { ...(edits.quads ?? {}) };
+      if (quad) quads[pageId] = quad;
+      else delete quads[pageId];
+      return { ...edits, quads };
+    });
+  };
+
+  const commitName = () => {
+    const name = nameDraft?.trim();
+    setNameDraft(null);
+    if (name && name !== summary.name) saveEdits((edits) => ({ ...edits, name }));
+  };
+
+  const commitSession = () => {
+    const session = sessionDraft?.trim();
+    setSessionDraft(null);
+    if (session !== undefined && session !== (summary.session ?? "")) saveEdits((edits) => ({ ...edits, session }));
+  };
+
+  const setOptions = async (options: ProcessOptions) => {
+    try {
+      await api.setOptions(documentId, options);
+      load();
+      onChanged();
+    } catch (e) {
+      onError(String(e));
+    }
+  };
+
+  const needle = compact(highlight);
+  const hitLines = ocr && needle ? ocr.blocks.flatMap((b) => b.lines).filter((l) => compact(l.text).includes(needle)) : [];
+
+  return (
+    <section className="document">
+      <header className="doc-header">
+        <button className="ghost back" onClick={onBack}>
+          보관함으로
+        </button>
+        <input
+          className="title-input"
+          aria-label="문서 이름"
+          value={nameDraft ?? summary.name}
+          onChange={(e) => setNameDraft(e.target.value)}
+          onBlur={commitName}
+          onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+        />
+        <select
+          aria-label="종류"
+          value={summary.kind}
+          onChange={(e) => saveEdits((edits) => ({ ...edits, kind: e.target.value as DocumentKind }))}
+        >
+          {Object.entries(KIND_LABEL).map(([value, text]) => (
+            <option key={value} value={value}>
+              {text}
+            </option>
+          ))}
+        </select>
+        <input
+          className="session-input"
+          aria-label="세션"
+          placeholder="세션(박람회명)"
+          value={sessionDraft ?? summary.session ?? ""}
+          onChange={(e) => setSessionDraft(e.target.value)}
+          onBlur={commitSession}
+          onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+        />
+        <span className={`badge state-${label.tone}`} title={summary.state.status === "failed" ? summary.state.message : undefined}>
+          {label.text}
+        </span>
+      </header>
+
+      <div className="doc-body">
+        <VirtualList
+          className="thumbs"
+          items={items}
+          itemHeight={THUMB_ROW}
+          selectedIndex={selected}
+          render={(item, index) => (
+            <button className={index === selected ? "thumb selected" : "thumb"} onClick={() => setSelected(index)}>
+              <div className="thumb-image">
+                {item.output?.thumb ? (
+                  <img src={fileUrl(item.output.thumb, item.output.processedAt)} alt="" loading="lazy" />
+                ) : (
+                  <span className="cover-empty">처리 전</span>
+                )}
+              </div>
+              <span className="thumb-label">
+                {item.pageIndex + 1}
+                {item.output && PART_LABEL[item.output.part] && ` ${PART_LABEL[item.output.part]}`}
+              </span>
+            </button>
+          )}
+        />
+
+        <div className="viewer">
+          {current && (
+            <div className="viewer-toolbar">
+              <button className="secondary" onClick={() => setEditingQuad(current.page)}>
+                꼭짓점 고치기
+              </button>
+              <button className="secondary" onClick={() => toggleLayout(current.page)}>
+                {current.page.layout === "single" ? "펼친 두 쪽으로" : "한 쪽으로"}
+              </button>
+              <button className="secondary" disabled={current.pageIndex === 0} onClick={() => movePage(current.page.id, -1)}>
+                앞으로
+              </button>
+              <button
+                className="secondary"
+                disabled={current.pageIndex === detail.pages.length - 1}
+                onClick={() => movePage(current.page.id, 1)}
+              >
+                뒤로
+              </button>
+              <button className="danger" onClick={() => deletePage(current.page.id)}>
+                페이지 빼기
+              </button>
+              <span className="spacer" />
+              <input
+                className="find-input"
+                placeholder="페이지에서 찾기"
+                value={highlight}
+                onChange={(e) => setHighlight(e.target.value)}
+              />
+              <button className={showText ? "secondary on" : "secondary"} disabled={!ocr} onClick={() => setShowText((v) => !v)}>
+                글자
+              </button>
+            </div>
+          )}
+          <div className="viewer-stage">
+            {current?.output ? (
+              <div className="page-frame">
+                <img src={fileUrl(current.output.image, current.output.processedAt)} alt={`${current.pageIndex + 1}쪽`} />
+                {hitLines.map((line, i) => (
+                  <div
+                    key={i}
+                    className="hit-box"
+                    style={{
+                      left: `${line.bbox.x * 100}%`,
+                      top: `${line.bbox.y * 100}%`,
+                      width: `${line.bbox.width * 100}%`,
+                      height: `${line.bbox.height * 100}%`,
+                    }}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="empty">{items.length === 0 ? "페이지가 없습니다" : "아직 처리하지 않은 페이지입니다"}</p>
+            )}
+            {showText && ocr && (
+              <div className="ocr-text">
+                {ocr.blocks.map((block, i) => (
+                  <p key={i} className={`ocr-${block.kind}`}>
+                    {block.text}
+                  </p>
+                ))}
+                {ocr.blocks.length === 0 && <p className="hint">읽은 글자가 없습니다</p>}
+              </div>
+            )}
+          </div>
+          {current && (
+            <div className="viewer-foot hint">
+              {current.pageIndex + 1}/{detail.pages.length}쪽 | 꼭짓점: {QUAD_SOURCE[current.page.quadSource]}
+              {needle && ocr && ` | 찾은 줄 ${hitLines.length}개`}
+            </div>
+          )}
+        </div>
+
+        <aside className="side">
+          <OptionsPanel options={detail.options} onChange={setOptions} onReprocess={() => api.reprocess(documentId, true).then(onChanged).catch((e) => onError(String(e)))} />
+          <ExportPanel documentId={documentId} isPamphlet={summary.kind === "pamphlet"} ready={ready} onError={onError} />
+          {summary.kind === "pamphlet" && (
+            <AiPanel
+              documentId={documentId}
+              ready={ready}
+              onRename={(name) => saveEdits((edits) => ({ ...edits, name }))}
+              onError={onError}
+            />
+          )}
+          {detail.deletedPages.length > 0 && (
+            <section className="panel">
+              <h3>지운 페이지</h3>
+              <ul className="plain-list">
+                {detail.deletedPages.map((id, i) => (
+                  <li key={id}>
+                    <span>지운 페이지 {i + 1}</span>
+                    <button className="ghost" onClick={() => restorePage(id)}>
+                      되살리기
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </aside>
+      </div>
+
+      {editingQuad && (
+        <QuadEditor
+          documentId={documentId}
+          page={editingQuad}
+          hasManual={editingQuad.quadSource === "manual"}
+          onSave={(quad) => saveQuad(editingQuad.id, quad)}
+          onClose={() => setEditingQuad(null)}
+          onError={onError}
+        />
+      )}
+    </section>
+  );
+}
+
+const QUAD_SOURCE = {
+  manual: "손으로 고침",
+  phone: "iPhone 감지",
+  detected: "Mac 감지",
+  none: "사진 전체",
+} as const;
+
+function OptionsPanel({
+  options,
+  onChange,
+  onReprocess,
+}: {
+  options: ProcessOptions;
+  onChange: (o: ProcessOptions) => void;
+  onReprocess: () => void;
+}) {
+  const segment = <K extends "dewarp" | "filter">(key: K, choices: [ProcessOptions[K], string][]) => (
+    <div className="segmented" role="radiogroup">
+      {choices.map(([value, text]) => (
+        <button
+          key={String(value)}
+          role="radio"
+          aria-checked={options[key] === value}
+          className={options[key] === value ? "on" : ""}
+          onClick={() => onChange({ ...options, [key]: value })}
+        >
+          {text}
+        </button>
+      ))}
+    </div>
+  );
+  return (
+    <section className="panel">
+      <h3>처리 옵션</h3>
+      <div className="field">
+        <span>곡면 보정</span>
+        {segment("dewarp", [
+          ["off", "끔"],
+          ["normal", "보통"],
+          ["strong", "더 펴기"],
+        ])}
+      </div>
+      <div className="field">
+        <span>필터</span>
+        {segment("filter", [
+          ["original", "원본"],
+          ["enhanced", "선명하게"],
+          ["grayscale", "회색"],
+          ["blackWhite", "흑백"],
+        ])}
+      </div>
+      <label className="toggle">
+        <input type="checkbox" checked={options.removeFingers} onChange={(e) => onChange({ ...options, removeFingers: e.target.checked })} />
+        손가락 지우기
+      </label>
+      <label className="toggle">
+        <input
+          type="checkbox"
+          checked={options.removeHandwriting}
+          onChange={(e) => onChange({ ...options, removeHandwriting: e.target.checked })}
+        />
+        필기 지우기
+      </label>
+      <p className="hint">옵션을 바꾸면 모든 페이지를 다시 처리합니다. 곡면 보정, 필터, 지우기는 다음 단계에서 연결됩니다.</p>
+      <button className="secondary" onClick={onReprocess}>
+        전체 다시 처리
+      </button>
+    </section>
+  );
+}
