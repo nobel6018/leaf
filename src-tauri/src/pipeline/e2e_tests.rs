@@ -20,6 +20,10 @@ const LINES: [&str; 3] = ["데이터센터 자율 로봇", "Autonomous Mobile Ro
 
 /// 흰 종이에 검은 글자를 그린 합성 페이지
 fn render_page(width: usize, height: usize) -> RgbImage {
+    render_lines(width, height, &LINES)
+}
+
+fn render_lines(width: usize, height: usize, lines: &[&str]) -> RgbImage {
     let mut rgba = vec![0u8; width * height * 4];
     let space = CGColorSpace::with_name(Some(unsafe { kCGColorSpaceSRGB })).unwrap();
     let context = unsafe {
@@ -37,7 +41,7 @@ fn render_page(width: usize, height: usize) -> RgbImage {
     CGContext::set_rgb_fill_color(Some(&context), 1.0, 1.0, 1.0, 1.0);
     CGContext::fill_rect(Some(&context), CGRect::new(CGPoint::new(0.0, 0.0), CGSize::new(width as f64, height as f64)));
     let font = unsafe { CTFont::with_name(&CFString::from_static_str("AppleSDGothicNeo-Bold"), 56.0, std::ptr::null()) };
-    for (i, text) in LINES.iter().enumerate() {
+    for (i, text) in lines.iter().enumerate() {
         let keys: [&CFString; 1] = unsafe { [kCTFontAttributeName] };
         let values: [&CFType; 1] = [&font];
         let attributes = CFDictionary::<CFString, CFType>::from_slices(&keys, &values);
@@ -175,5 +179,69 @@ fn 합성_문서를_처리하고_검색과_pdf_텍스트까지_나온다() {
         std::fs::copy(&pdf, keep.join("e2e.pdf")).unwrap();
         std::fs::copy(dir.join(&output.image), keep.join("page.jpg")).unwrap();
         eprintln!("결과를 {}에 남김", keep.display());
+    }
+}
+
+/// 앱을 직접 띄워 볼 때 쓰는 합성 문서 만들기. 실행: LEAF_SAMPLE_LIBRARY=<보관함 폴더> cargo test -p leaf -- --ignored 합성_예시
+#[test]
+#[ignore]
+fn 합성_예시_문서를_보관함에_만든다() {
+    let Some(library) = std::env::var_os("LEAF_SAMPLE_LIBRARY") else {
+        return;
+    };
+    let library = std::path::PathBuf::from(library);
+    // (줄 글자, iPhone 꼭짓점 있음, 배치)
+    type SamplePage<'a> = (Vec<&'a str>, bool, &'a str);
+    let docs: [(&str, &str, &str, Vec<SamplePage>); 2] = [
+        (
+            "2026 예시박람회_예시로보틱스",
+            "pamphlet",
+            "2026 예시박람회",
+            vec![
+                (vec!["예시로보틱스", "데이터센터 랙 운반 로봇", "적재 하중 500kg"], true, "single"),
+                (vec!["Autonomous Mobile Robot", "자율 주행 정밀도 10mm", "문의 sample@example.com"], false, "single"),
+                (vec!["도입 사례", "예시 클라우드 센터 2025", "예시 통신사 2026"], true, "single"),
+            ],
+        ),
+        (
+            "예시 책",
+            "book",
+            "",
+            vec![(vec!["1장 시작하며", "왼쪽 쪽 본문입니다", "오른쪽 쪽 본문입니다"], true, "spread")],
+        ),
+    ];
+    for (name, kind, session, pages) in docs {
+        let document_id = uuid::Uuid::new_v4();
+        let dir = library.join(document_id.to_string());
+        std::fs::create_dir_all(dir.join("raw")).unwrap();
+        let canvas = (1500u32, 1100u32);
+        let quad_px = [(180.0, 120.0), (1330.0, 160.0), (1370.0, 980.0), (140.0, 940.0)];
+        let mut manifest_pages = Vec::new();
+        for (lines, with_quad, layout) in pages {
+            let page_id = uuid::Uuid::new_v4();
+            let photo = photograph(&render_lines(1200, 860, &lines), quad_px, canvas);
+            write_rotated_heic(&dir.join(format!("raw/{page_id}.heic")), &photo);
+            let quad: Vec<serde_json::Value> = quad_px
+                .iter()
+                .map(|(x, y)| serde_json::json!({"x": x / canvas.0 as f64, "y": y / canvas.1 as f64}))
+                .collect();
+            let mut page = serde_json::json!({
+                "id": page_id, "raw": format!("raw/{page_id}.heic"), "capturedAt": "2026-11-05T01:20:03.412Z",
+                "layout": layout,
+            });
+            if with_quad {
+                page["quad"] = serde_json::json!({"topLeft": quad[0], "topRight": quad[1], "bottomRight": quad[2], "bottomLeft": quad[3]});
+            }
+            manifest_pages.push(page);
+        }
+        let mut manifest = serde_json::json!({
+            "schemaVersion": 1, "id": document_id, "name": name, "kind": kind,
+            "createdAt": "2026-11-05T01:20:00Z", "pages": manifest_pages
+        });
+        if !session.is_empty() {
+            manifest["session"] = serde_json::json!(session);
+        }
+        std::fs::write(dir.join("manifest.json"), manifest.to_string()).unwrap();
+        eprintln!("만든 문서: {}", dir.display());
     }
 }
