@@ -33,7 +33,7 @@ pub struct Edits {
     /// `/` 계층 태그(tags.rs 규칙으로 정리). 사람과 Mac AI가 같이 쓴다
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
-    /// 사람이 태그를 고쳤으면 true. 그 뒤로 AI 정리는 태그를 덮지 않는다(sori docs/organize.md와 같은 규칙)
+    /// 사람이 태그를 고쳤으면 true. 그 뒤로 AI 정리는 태그를 덮지 않는다(docs/organize.md)
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub tags_by_user: bool,
     /// 페이지 순서를 바꿨으면 전체 순서. 여기 없는 새 페이지는 촬영 순서대로 뒤에 붙는다

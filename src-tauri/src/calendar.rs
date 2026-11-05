@@ -1,5 +1,5 @@
 //! 캘린더로 묶음(세션) 추천(EventKit, macOS). 묶음이 빈 문서의 촬영 시각과 겹치는 일정을 후보로 찾고,
-//! AI가 OCR 글자로 어느 후보가 맞는지(맞는 게 없는지) 확인한다. 시간만 겹친다고 붙이지 않는다(sori docs/organize.md 교훈).
+//! AI가 OCR 글자로 어느 후보가 맞는지(맞는 게 없는지) 확인한다. 시간만 겹친다고 붙이지 않는다(docs/organize.md).
 //! 결과는 제안일 뿐이고 edits.json에 쓰지 않는다. 사람이 받아들이면 화면이 묶음을 저장한다.
 //! 캘린더 허락은 사람이 "일정에서 묶음 찾기"를 처음 누를 때만 묻는다.
 //!
@@ -25,7 +25,7 @@ pub struct CalendarEvent {
     pub title: String,
     pub start: DateTime<Utc>,
     pub end: DateTime<Utc>,
-    /// 박람회처럼 여러 날에 걸친 종일 일정이 많아 빼지 않는다(sori와 다른 점)
+    /// 박람회처럼 여러 날에 걸친 종일 일정이 많아 빼지 않는다
     pub all_day: bool,
     pub location: Option<String>,
     pub calendar: Option<String>,

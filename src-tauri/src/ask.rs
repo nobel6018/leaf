@@ -237,7 +237,7 @@ pub fn library_prompt(question: &str, docs: &[AskDocument]) -> (String, Vec<Sour
 }
 
 /// 질문에서 찾을 낱말. 두 글자 이상만 쓰고, 한국어 조사가 붙은 낱말은 조사를 뗀 것도 찾는다("냉각은" → "냉각").
-/// 조사 목록에 없어도 세 글자 이상 한글 낱말은 끝 글자를 뗀 것도 찾는다(sori ask::keywords와 같은 방식)
+/// 조사 목록에 없어도 세 글자 이상 한글 낱말은 끝 글자를 뗀 것도 찾는다
 pub fn keywords(question: &str) -> Vec<String> {
     // 어느 글에나 들어갈 만한 질문 낱말은 찾지 않는다
     const STOP: [&str; 24] = [

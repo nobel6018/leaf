@@ -49,4 +49,4 @@
 
 ## 태그
 
-`edits.json`의 `tags`에 `/` 계층 태그를 둡니다(예: `분야/냉각`, `책/경제`). 정리 규칙은 sori와 같습니다(`crates/leaf-core/src/tags.rs`). 사람이 태그를 고치면 `tagsByUser`가 켜지고, 그 뒤로 AI 정리는 태그를 덮지 않습니다.
+`edits.json`의 `tags`에 `/` 계층 태그를 둡니다(예: `분야/냉각`, `책/경제`). 정리 규칙은 `crates/leaf-core/src/tags.rs`에 있습니다. 사람이 태그를 고치면 `tagsByUser`가 켜지고, 그 뒤로 AI 정리는 태그를 덮지 않습니다.

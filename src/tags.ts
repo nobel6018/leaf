@@ -1,5 +1,5 @@
 // 문서 태그 모아 보기. `/`로 계층을 만든 태그(분야/냉각, 책/경제)를 폴더 트리처럼 보여 준다.
-// 정리 규칙은 Rust(crates/leaf-core/src/tags.rs)와 같다. sori src/tags.ts에서 가져왔다
+// 정리 규칙은 Rust(crates/leaf-core/src/tags.rs)와 같다
 // @see docs/organize.md
 
 export interface TagNode {

@@ -1,7 +1,7 @@
 import Foundation
 
 // 새 버전 알림. 앱이 앞으로 올 때 하루에 한 번 GitHub 최신 Release를 보고, leaf-ios.ipa가 붙은 더 새 버전이면 목록 위에 알린다.
-// 설치는 AltStore가 한다(무료 Apple ID 사이드로딩이라 앱이 스스로 설치하지 못한다). sori src/updateCheck.ts와 같은 방식.
+// 설치는 AltStore가 한다(무료 Apple ID 사이드로딩이라 앱이 스스로 설치하지 못한다).
 // @see docs/ios.md, docs/release.md
 
 /// 알릴 새 버전

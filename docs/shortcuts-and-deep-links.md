@@ -76,11 +76,11 @@ useEffect(() => registerCommand("openAsk", () => setAskOpen(true)), []);
 모든 링크는 창을 앞으로 가져옵니다. MCP 서버, Raycast, 단축어(Shortcuts)가 `open "leaf://open/<id>?page=2"`로 씁니다.
 
 - 문서 id는 UUID만 받습니다. 아니면 링크를 버립니다. `page`가 0이거나 숫자가 아니면 첫 쪽을 엽니다
-- 화면을 보여 주기만 하고 데이터를 바꾸지 않아 토큰을 받지 않습니다. 웹 페이지도 `leaf://` 링크를 열 수 있으므로, 지우기, 가져오기, 내보내기처럼 데이터를 바꾸거나 이 컴퓨터의 파일을 읽는 링크는 만들지 않았습니다. 필요해지면 sori의 `link-token` 방식(데이터 폴더의 600 권한 파일)을 먼저 붙입니다
+- 화면을 보여 주기만 하고 데이터를 바꾸지 않아 토큰을 받지 않습니다. 웹 페이지도 `leaf://` 링크를 열 수 있으므로, 지우기, 가져오기, 내보내기처럼 데이터를 바꾸거나 이 컴퓨터의 파일을 읽는 링크는 만들지 않았습니다. 필요해지면 데이터 폴더의 600 권한 파일에 둔 토큰을 링크에 요구하는 방식을 먼저 붙입니다
 - 링크로 앱을 처음 띄우면 화면이 준비되기 전에 링크가 도착합니다. Rust가 요청을 보관했다가, 화면이 `app-action` 구독을 마치고 `frontend_ready`를 부를 때 넘깁니다
 - macOS에서는 설치된 앱(.app)만 링크를 받습니다. `pnpm tauri dev`로는 시험할 수 없습니다. `pnpm tauri build --debug --bundles app`으로 묶은 뒤 `open "leaf://search?q=로봇"`으로 시험합니다
 
-플러그인은 sori와 같은 버전으로 고정합니다(`tauri-plugin-deep-link =2.6.2`, `tauri-plugin-single-instance =2.5.4`, `tauri-plugin-global-shortcut =2.4.1`). 두 번째 실행은 single-instance가 가로채 첫 창에 넘깁니다.
+플러그인은 검증한 버전으로 고정합니다(`tauri-plugin-deep-link =2.6.2`, `tauri-plugin-single-instance =2.5.4`, `tauri-plugin-global-shortcut =2.4.1`). 두 번째 실행은 single-instance가 가로채 첫 창에 넘깁니다.
 
 ## 빠른 찾기 (⌘K)
 

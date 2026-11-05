@@ -20,7 +20,7 @@ xcodebuild test -project Leaf.xcodeproj -scheme Leaf \
 
 ## 설치
 
-sori처럼 AltStore로 본인 기기에만 설치합니다. 빌드는 서명 없이 하고 AltStore가 무료 Apple ID로 다시 서명합니다. 무료 Apple ID는 7일마다 다시 서명해야 하고 AltStore가 자동으로 갱신합니다.
+AltStore로 본인 기기에만 설치합니다. 빌드는 서명 없이 하고 AltStore가 무료 Apple ID로 다시 서명합니다. 무료 Apple ID는 7일마다 다시 서명해야 하고 AltStore가 자동으로 갱신합니다.
 
 무료 Apple ID라 entitlements가 비어 있습니다. CloudKit, 앱 전용 iCloud 컨테이너, 백그라운드 모드를 쓰지 않습니다. 토큰은 앱 기본 키체인 그룹에 둡니다.
 
@@ -111,7 +111,7 @@ docs/transfer.md를 따릅니다. 코드는 `ios/Leaf/Transfer/`, 흐름은 `App
 
 ## 업데이트 알림
 
-앱이 앞으로 올 때 하루에 한 번 GitHub `releases/latest`를 묻고, `leaf-ios.ipa`가 붙은 더 새 버전이면 문서 목록 위에 "새 버전 x.y.z"를 띄웁니다(`App/UpdateCheck.swift`, `AppModel.checkForUpdate`). sori `src/updateCheck.ts`와 같은 방식입니다.
+앱이 앞으로 올 때 하루에 한 번 GitHub `releases/latest`를 묻고, `leaf-ios.ipa`가 붙은 더 새 버전이면 문서 목록 위에 "새 버전 x.y.z"를 띄웁니다(`App/UpdateCheck.swift`, `AppModel.checkForUpdate`).
 
 - 버전 비교는 점으로 나눈 숫자를 앞에서부터 봅니다(0.10.0 > 0.9.1). 앞의 `v`와 뒤표(`-beta.1`)는 무시합니다(`UpdateCheck.isNewer`, `UpdateCheckTests`)
 - 확인 결과는 저장해 두어 묻지 않는 날에도 알림이 남습니다. 닫으면 그 버전은 다시 알리지 않고, 더 새 버전이 나오면 다시 알립니다

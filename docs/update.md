@@ -1,6 +1,6 @@
 # 앱 업데이트
 
-sori와 같은 방식입니다(sori `docs/update.md`). Mac 앱은 앱 안에서 새 버전을 받아 설치하고, iPhone 앱은 AltStore 소스로 업데이트합니다. 릴리스 절차는 docs/release.md입니다.
+Mac 앱은 앱 안에서 새 버전을 받아 설치하고, iPhone 앱은 AltStore 소스로 업데이트합니다. 릴리스 절차는 docs/release.md입니다.
 
 ## Mac 동작
 
@@ -12,7 +12,7 @@ sori와 같은 방식입니다(sori `docs/update.md`). Mac 앱은 앱 안에서 
 
 ## 진행 중인 작업 등록부
 
-sori는 모듈마다 흩어진 상태(녹음기, 취소 표, 요약 표)를 `busy_tasks`에서 모읍니다. leaf는 등록부 하나(`src-tauri/src/busy.rs`)를 둡니다.
+진행 중인 작업은 모듈마다 흩어진 상태에서 모으지 않고 등록부 하나(`src-tauri/src/busy.rs`)에 둡니다. 새 작업 종류를 만들고 목록에 넣는 걸 잊는 일을 막기 위해서입니다.
 
 ```rust
 let _busy = busy::start(format!("처리: {}", manifest.name));

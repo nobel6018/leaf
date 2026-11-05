@@ -40,7 +40,7 @@ futures-util = "0.3"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 thiserror = "2"
-# 단축키, leaf:// 링크, 두 번째 실행 가로채기. sori와 같은 버전으로 고정한다(docs/shortcuts-and-deep-links.md)
+# 단축키, leaf:// 링크, 두 번째 실행 가로채기. 검증한 버전으로 고정한다(docs/shortcuts-and-deep-links.md)
 tauri-plugin-global-shortcut = "=2.4.1"
 tauri-plugin-deep-link = "=2.6.2"
 tauri-plugin-single-instance = { version = "=2.5.4", features = ["deep-link"] }

@@ -45,8 +45,8 @@ Windows를 붙일 때 바꿀 곳은 OCR 하나로 제한합니다. OCR은 플랫
 
 ### 문서 형식은 Rust가 원본, Swift는 따라 쓴다
 
-iPhone에 Rust 정적 라이브러리를 링크하는 방법(sori 방식)도 있지만, manifest는 단순한 JSON이라 Swift `Codable`로 다시 쓰는 편이 빌드가 가볍습니다. 대신 두 쪽이 같은 `fixtures/manifest-v1.json`을 읽고 쓰는 테스트로 형식 어긋남을 막습니다. 전송 로직이 복잡해지면 그때 Rust 공유를 다시 검토합니다.
+iPhone에 Rust 정적 라이브러리를 링크하는 방법도 있지만, manifest는 단순한 JSON이라 Swift `Codable`로 다시 쓰는 편이 빌드가 가볍습니다. 대신 두 쪽이 같은 `fixtures/manifest-v1.json`을 읽고 쓰는 테스트로 형식 어긋남을 막습니다. 전송 로직이 복잡해지면 그때 Rust 공유를 다시 검토합니다.
 
 ### AI 정리는 구독 CLI
 
-sori와 같이 구독 로그인된 `claude -p`를 부릅니다. API 키가 없어 공개 저장소에 비밀 값이 생기지 않습니다.
+구독 로그인된 `claude -p`를 부릅니다. API 키가 없어 공개 저장소에 비밀 값이 생기지 않습니다.

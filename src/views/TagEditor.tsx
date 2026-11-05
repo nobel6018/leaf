@@ -15,7 +15,7 @@ interface EditorProps {
   disabled?: boolean;
 }
 
-/** 문서 태그 편집. 칩으로 보여 주고, 입력하면 쓰던 태그를 초성까지 찾아 제안한다(sori TagEditor)
+/** 문서 태그 편집. 칩으로 보여 주고, 입력하면 쓰던 태그를 초성까지 찾아 제안한다
  * Enter나 쉼표로 붙이고, 칩의 ×나 빈 칸에서 Backspace로 뺀다. 자동완성은 화살표로 고른 경우에만 그 제안을 붙인다
  * @see docs/organize.md */
 export function TagEditor({ tags, allTags, onChange, aiTagged, disabled }: EditorProps) {

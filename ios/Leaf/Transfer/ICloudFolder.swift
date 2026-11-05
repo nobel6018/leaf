@@ -1,7 +1,7 @@
 import Foundation
 
 // Mac이 같은 Wi-Fi에 없을 때 쓰는 보조 경로. 무료 Apple ID 서명이라 CloudKit과 앱 전용 iCloud 폴더를 못 쓴다.
-// 파일 앱 폴더 선택기로 iCloud Drive/leaf를 한 번 고르고 보안 범위 북마크로 기억한다(sori docs/mobile.md 방식).
+// 파일 앱 폴더 선택기로 iCloud Drive/leaf를 한 번 고르고 보안 범위 북마크로 기억한다.
 // leaf/inbox/<문서 id>/에 원본을 먼저, manifest를 마지막에 복사한다. Mac은 가져간 뒤 그 폴더를 지운다.
 // @see docs/transfer.md
 

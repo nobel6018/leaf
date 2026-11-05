@@ -73,9 +73,9 @@ iPhone은 보내기에 성공한 문서를 "Mac에 있음"으로 표시합니다
 
 ## iCloud 폴더 (보조)
 
-sori와 같이 무료 Apple ID 서명이라 CloudKit은 못 쓰고 iCloud Drive 폴더를 씁니다.
+무료 Apple ID 서명이라 CloudKit은 못 쓰고 iCloud Drive 폴더를 씁니다.
 
-- iPhone: 처음 한 번 파일 앱 폴더 선택기로 `iCloud Drive/leaf`를 고르고 보안 범위 북마크로 기억합니다(sori `docs/sync.md` 방식)
+- iPhone: 처음 한 번 파일 앱 폴더 선택기로 `iCloud Drive/leaf`를 고르고 보안 범위 북마크로 기억합니다
 - iPhone은 `leaf/inbox/<문서 id>/`에 원본을 먼저, manifest를 마지막에 복사합니다
 - Mac은 `~/Library/Mobile Documents/com~apple~CloudDocs/leaf/inbox`를 지켜보다가 manifest가 있고 모든 원본이 받아진 문서를 보관함으로 가져온 뒤 inbox에서 지웁니다
 - 아직 받지 않은 파일(`.icloud` 자리표시)은 `brctl download`나 `NSFileCoordinator`로 받게 한 뒤 다시 확인합니다

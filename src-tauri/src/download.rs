@@ -1,4 +1,4 @@
-//! 모델 이어 받기. sori `src-tauri/src/download.rs`를 그대로 가져왔다(조각 병렬, 끊기면 남은 조각만).
+//! 모델 이어 받기(조각 병렬, 끊기면 남은 조각만).
 //!
 //! @see docs/models.md
 

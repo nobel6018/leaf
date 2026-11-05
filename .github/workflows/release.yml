@@ -4,7 +4,7 @@ name: release
 # 만들어 GitHub Release에 붙인다. 모든 파일이 붙으면 초안을 공개한다(docs/release.md).
 # Windows는 Mac 앱이 macOS API(Vision, ImageIO)를 직접 쓰는 동안 뺀다. OCR, 디코딩의 Windows 모듈이 생기면 넣는다
 #
-# 캐시 전략은 sori와 같다. GitHub 캐시는 브랜치 단위라 태그에서 만든 캐시는 다음 태그가 못 읽고,
+# 캐시 전략: GitHub 캐시는 브랜치 단위라 태그에서 만든 캐시는 다음 태그가 못 읽고,
 # main에서 만든 캐시는 모든 태그가 읽는다. 그래서 일주일에 한 번 main에서 릴리스 빌드를 돌려 캐시를 데운다.
 # main push마다 데우지는 않는다(버전을 올리면 Cargo.toml이 바뀌어 매번 돌고 태그 빌드와 겹친다).
 # 의존성을 크게 바꾼 직후에는 Actions에서 release를 손으로 한 번 돌리면(workflow_dispatch) 다음 태그가 빠르다
@@ -38,7 +38,7 @@ jobs:
           node-version: 26
           cache: pnpm
       - uses: dtolnay/rust-toolchain@stable
-      # 러너 이미지가 바뀌면 캐시가 맞아도 C/C++ 의존성(onnxruntime 링크 등)의 build.rs가 다시 돌아 느려진다(sori v0.9.11).
+      # 러너 이미지가 바뀌면 캐시가 맞아도 C/C++ 의존성(onnxruntime 링크 등)의 build.rs가 다시 돌아 크게 느려진다.
       # rust-cache는 키가 정확히 맞으면 저장하지 않으므로 이미지 버전을 키에 넣어 새 이미지에서 한 번 빌드해 새로 저장한다.
       # shared-key를 쓰면 key 입력은 무시되므로 shared-key에 넣는다
       - name: 러너 이미지 버전을 캐시 키로
@@ -59,7 +59,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
         run: |
-          # macOS 기본 bash는 3.2라 mapfile이 없다(sori v0.6.2에서 dmg가 빠진 원인)
+          # macOS 기본 bash는 3.2라 mapfile이 없다(쓰면 dmg가 조용히 빠진다)
           files=()
           while IFS= read -r -d '' f; do files+=("$f"); done < <(find target/release/bundle -type f -name '*.dmg' -print0)
           # 업데이트 파일은 이름이 leaf.app.tar.gz로 고정이라 버전과 아키텍처를 붙여 올린다
