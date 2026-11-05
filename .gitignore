@@ -30,3 +30,6 @@ scans/
 .idea
 *.sw?
 *.log
+
+# Claude Code 작업 폴더(팀원 worktree 등)
+.claude/
