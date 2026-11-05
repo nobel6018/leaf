@@ -6,6 +6,17 @@ description = "leaf 이미지 처리: 두 페이지 분리, 곡면 보정, 조�
 publish = false
 
 [dependencies]
+leaf-core = { path = "../leaf-core" }
 image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
-# perspective.rs
+rayon = "1.12"
 thiserror = "2"
+sha2 = "0.10"
+hex = "0.4"
+ort = { version = "=2.0.0-rc.15", default-features = false, features = ["std", "download-binaries", "tls-native", "copy-dylibs", "api-31"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+ort = { version = "=2.0.0-rc.15", default-features = false, features = ["coreml"] }
+
+[dev-dependencies]
+imageproc = "0.27"
+ab_glyph = "0.2"
