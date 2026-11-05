@@ -38,6 +38,28 @@ struct Page: Codable, Equatable, Sendable, Identifiable {
     var capturedAt: Date
     var layout: PageLayout
     var quad: Quad?
+
+    private enum CodingKeys: String, CodingKey {
+        case id, raw, capturedAt, layout, quad
+    }
+
+    init(id: UUID, raw: String, capturedAt: Date, layout: PageLayout, quad: Quad?) {
+        self.id = id
+        self.raw = raw
+        self.capturedAt = capturedAt
+        self.layout = layout
+        self.quad = quad
+    }
+
+    // Swift UUID는 대문자로 쓴다. 폴더 이름, raw 경로, Rust uuid 출력이 모두 소문자라 맞춘다
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id.uuidString.lowercased(), forKey: .id)
+        try container.encode(raw, forKey: .raw)
+        try container.encode(capturedAt, forKey: .capturedAt)
+        try container.encode(layout, forKey: .layout)
+        try container.encodeIfPresent(quad, forKey: .quad)
+    }
 }
 
 struct Manifest: Codable, Equatable, Sendable, Identifiable {
@@ -48,6 +70,31 @@ struct Manifest: Codable, Equatable, Sendable, Identifiable {
     var session: String?
     var createdAt: Date
     var pages: [Page]
+
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion, id, name, kind, session, createdAt, pages
+    }
+
+    init(schemaVersion: Int, id: UUID, name: String, kind: DocumentKind, session: String?, createdAt: Date, pages: [Page]) {
+        self.schemaVersion = schemaVersion
+        self.id = id
+        self.name = name
+        self.kind = kind
+        self.session = session
+        self.createdAt = createdAt
+        self.pages = pages
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(schemaVersion, forKey: .schemaVersion)
+        try container.encode(id.uuidString.lowercased(), forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(kind, forKey: .kind)
+        try container.encodeIfPresent(session, forKey: .session)
+        try container.encode(createdAt, forKey: .createdAt)
+        try container.encode(pages, forKey: .pages)
+    }
 
     static func decoder() -> JSONDecoder {
         let decoder = JSONDecoder()
