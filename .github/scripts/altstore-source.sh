@@ -56,7 +56,7 @@ jq -n \
       bundleIdentifier: $bundle,
       developerName: "nobel6018",
       subtitle: "거치대에 올리고 종이만 바꿔 놓으면 찍힙니다",
-      localizedDescription: "팜플렛과 책을 자동으로 찍어 같은 Wi-Fi의 Mac이나 iCloud Drive로 보냅니다. 보정, OCR, AI 정리는 Mac의 leaf가 합니다.",
+      localizedDescription: "문서, 책, 팜플렛을 거치대에서 자동으로 찍어 같은 Wi-Fi의 Mac이나 iCloud Drive로 보냅니다. 보정, OCR, AI 정리는 Mac의 leaf가 합니다.",
       iconURL: $icon,
       tintColor: "#4F7A3A",
       category: "productivity",
