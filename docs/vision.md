@@ -1,0 +1,150 @@
+# 이미지 처리 (leaf-vision)
+
+코드: `crates/leaf-vision/`. 입력과 출력은 `image::RgbImage`이고 macOS API를 쓰지 않습니다. 모델은 ONNX Runtime(`ort`)으로 돌리고, macOS에서는 CoreML 실행기를 붙입니다. Windows로 넓힐 때 바꿀 곳은 실행기 선택(`models.rs`의 `load`)뿐입니다.
+
+원근 보정(`perspective.rs`)은 mac-pipeline 담당이고, 이 문서는 그 뒤 단계를 다룹니다.
+
+## 처리 순서
+
+`pipeline::process_source`가 원근 보정이 끝난 사진 한 장을 출력 페이지 한 장 또는 두 장으로 만듭니다.
+
+| 순서 | 단계 | 함수 | 이유 |
+|---|---|---|---|
+| 1 | 손가락 지우기 | `fingers::remove_fingers` | 손은 사진 테두리에서 들어온다. 나누기 전 원본에서 찾는다. 플랫폼 손 마스크도 원본 좌표다 |
+| 2 | 두 페이지 분리 | `split::split_spread` | `PageLayout::Spread`일 때만. 신뢰도가 낮으면 한 페이지로 둔다 |
+| 3 | 곡면 보정 | `dewarp::dewarp` | 페이지마다. 접힌 선 그림자가 한쪽 끝에 있어야 모델이 페이지 경계를 잡는다 |
+| 4 | 필기 지우기 | `handwriting::remove_handwriting` | 펴진 뒤라 획이 덜 휘고, 조명 보정 전이라 원래 색이 남아 있다 |
+| 5 | 조명 보정, 필터 | `filter::apply_filter` | 마지막 |
+
+`process_page`는 나눠진 페이지 하나에 3~5단계만 겁니다. 단계별 걸린 시간은 `PageReport::timings`, `SourceReport::timings`에 남습니다.
+
+## 공개 함수
+
+| 함수 | 하는 일 |
+|---|---|
+| `process_source(img, layout, &ProcessOptions, finger_mask, &Models)` | 전체 흐름. `Vec<ProcessedPage>`(part, image, report)와 `SourceReport` |
+| `process_page(img, &ProcessOptions, &Models)` | 곡면 보정, 필기 지우기, 필터 |
+| `find_gutter(img) -> Gutter` | 접힌 선(위쪽 x, 아래쪽 x, 신뢰도, 그림자 깊이, 빈 띠 폭) |
+| `split_spread(img) -> Split` | `Spread { left, right, gutter }` 또는 `Single { gutter }` |
+| `split::cut(img, &Gutter)` | 주어진 접힌 선으로 자르기(화면에서 사용자가 선을 고쳤을 때) |
+| `dewarp(img, Dewarp, &Models) -> DewarpResult` | 곡면 보정. 모델이 없거나 `Off`면 입력 그대로, `applied = false` |
+| `apply_filter(img, Filter)` | `Original`, `Enhanced`, `Grayscale`, `BlackWhite` |
+| `detect_fingers(img) -> (mask, count)` | 테두리에 닿은 피부색 영역 마스크 |
+| `remove_fingers(img, Option<&GrayImage>, &Models)` | 손가락 찾기, 외부 마스크 합치기, 메우기 |
+| `detect_colored_ink(img)`, `remove_handwriting(img, &Models)` | 색 펜 자국 찾기, 지우기 |
+| `inpaint(img, mask, &Models) -> (image, InpaintEngine)` | 마스크(255 = 지울 곳) 메우기. LaMa, 없으면 고전 보간 |
+| `Models::new(dir)`, `Models::none()`, `models::verify(path, spec)` | 모델 폴더 지정, 모델 없이 쓰기, 내려받은 파일 확인 |
+
+## 모델
+
+모델 파일은 저장소에 넣지 않습니다(크기, 라이선스). 목록은 `models::MODELS`에 있고, 앱이 처음 쓸 때 GitHub 릴리스(`models-v1`)에서 받아 모델 폴더에 둡니다. 내려받기는 sori의 `download.rs` 방식(조각 이어 받기)을 앱 쪽에서 쓰고, 받은 뒤 `models::verify`로 크기와 SHA-256을 확인합니다. 이 크레이트는 네트워크를 쓰지 않습니다.
+
+| 파일 | 크기 | SHA-256 | 출처 | 라이선스 | 실행기 |
+|---|---|---|---|---|---|
+| `uvdoc.onnx` | 31,602,475 | `ba42385a7f881afabc67ca6c4cc854d1506c52b94ee9af4e35261ddf347cea1d` | UVDoc(tanguymagne/UVDoc, 커밋 `4c9b82b`) | MIT | CoreML, 실패하면 CPU |
+| `lama_fp32.onnx` | 208,044,816 | `1faef5301d78db7dda502fe59966957ec4b79dd64e16f03ed96913c7a4eb68d6` | big-lama의 ONNX 변환(Carve/LaMa-ONNX, 커밋 `c3c0c9e`) | Apache-2.0 | CPU |
+
+만들기(저장소 밖 가상환경, Python 3.12):
+
+```sh
+uv venv -p 3.12 /tmp/leaf-models-venv
+uv pip install --python /tmp/leaf-models-venv/bin/python torch onnx onnxruntime onnxscript numpy
+/tmp/leaf-models-venv/bin/python scripts/models/export_uvdoc.py --work /tmp/leaf-models-src --out ~/leedo/leaf-models/uvdoc.onnx
+/tmp/leaf-models-venv/bin/python scripts/models/fetch_lama.py --out ~/leedo/leaf-models/lama_fp32.onnx
+```
+
+`export_uvdoc.py`는 커밋과 가중치 해시를 고정하고, 내보낸 ONNX 출력이 PyTorch와 같은지(최대 차이 1.3e-6) 확인합니다. 두 번 내보내면 바이트 단위로 같은 파일이 나옵니다.
+
+### 실행기 선택에서 알아 둘 것
+
+- `ort`는 실행기를 지정하지 않으면 macOS에서 CoreML을 자동으로 붙입니다(`AutoDevicePolicy` 기본값). 그래서 CPU 경로에는 `PreferCPU`를 명시합니다. 이걸 빼면 CPU라고 표시되면서 실제로는 CoreML(fp16)로 돌고, LaMa는 세션 준비에 12~16초가 걸립니다
+- CoreML은 `MLProgram` 형식으로 붙이고, 컴파일 결과를 모델 폴더의 `coreml-cache/`에 남깁니다
+- LaMa는 CoreML로 돌려도 CPU보다 빠르지 않아(512 입력 한 번 1.1~1.2초로 같음) 세션 준비가 짧은 CPU를 씁니다
+- release 빌드(LTO)에서 CoreML 실행기가 쓰는 `__isPlatformVersionAtLeast`를 못 찾아 링크가 깨집니다. `build.rs`가 `libclang_rt.osx.a`를 붙여 해결합니다
+
+## 단계별 방법
+
+### 두 페이지 분리 (`split.rs`)
+
+긴 변 1000화소로 줄인 휘도에서, 기울기 -8도~8도(0.5도 간격)마다 기울어진 세로선을 따라 두 단면을 냅니다.
+
+- 밝기 단면: 가운데 25~75% 안에서 양옆 어깨보다 가장 깊이 파인 골짜기(접힌 선 그림자)
+- 잉크 단면: 가운데 30~70%를 지나는 글자 없는 가장 넓은 띠(그림자가 약한 사진용)
+
+두 단서 중 강한 쪽이 큰 기울기를 고릅니다. 빈 띠가 뚜렷한데 골짜기가 그 밖이면 띠를 믿습니다. 펼친 책은 가로가 길어서, 세로로 긴 사진은 신뢰도를 깎습니다. 신뢰도가 `MIN_CONFIDENCE`(0.35) 미만이면 `Split::Single`입니다. 자를 때는 접힌 선이 세로가 되게 돌린 뒤 자릅니다.
+
+### 곡면 보정 (`dewarp.rs`)
+
+UVDoc이 488x712 입력에서 45x31 역방향 격자(출력 각 점이 원본 어디인지)를 예측합니다. 격자를 출력 해상도로 늘려 원본 고해상도 사진에서 직접 표본을 뜹니다. 모델 해상도로 펴서 늘리는 것보다 글자가 선명합니다. 출력 크기는 격자 가로줄, 세로줄의 원본 위 길이로 정해 펴진 페이지의 원래 비율이 돌아오고, 원본보다 화소 수가 늘지 않게 맞춥니다.
+
+`Strong`(vFlat "더 펴기")은 한 번 편 결과(모델 입력의 2배 해상도)를 다시 모델에 넣어 남은 굽음을 잡고, 두 격자를 합성해 원본에서 한 번만 표본을 뜹니다. 2차 입력에는 둘레에 어두운 바탕(6%)을 붙입니다. 안 붙이면 페이지가 화면을 꽉 채워 모델이 글자 덩어리 가장자리를 페이지 경계로 보고 여백을 잘라 냅니다.
+
+### 조명 보정과 필터 (`filter.rs`)
+
+- `Enhanced`: 긴 변 기준 64개 블록마다 밝은 화소(상위 8%) 색을 배경으로 잡습니다. 중앙값이 너무 어둡거나(사진, 굵은 제목) 채도가 높은 블록은 종이가 아니라서 둘레 종이 블록에서 pull-push로 메웁니다. 채널마다 배경으로 나누므로 그림자 제거와 흰색 맞춤이 한 번에 되고, 사진 영역은 주변 종이와 같은 비율로 밝아져 색이 날아가지 않습니다. 마지막에 수준 맞춤(검정 22, 흰색 246)으로 대비를 조금 올립니다. 종이 전체가 색지면 채도 조건을 풉니다
+- `Grayscale`: `Enhanced` 뒤 휘도
+- `BlackWhite`: `Enhanced` 휘도에 Sauvola(k 0.18, R 128, 창 한 변이 긴 변의 약 4%). 지역 평균과 표준편차는 긴 변 1200 축소 영상에서 구해 늘립니다
+- `Original`: 그대로
+
+### 손가락 지우기 (`fingers.rs`)
+
+긴 변 512로 줄여 종이(밝은 10%) 색으로 흰색을 맞춘 뒤, YCrCb 피부색(Cr 138~178, Cb 77~130, Cr-Cb 15 이상)을 고릅니다. 열림, 닫힘으로 잡티를 지우고 이미지 테두리에 닿은 덩어리(면적 0.15~25%)만 남깁니다. 반그림자까지 덮게 넓혀 원본 크기로 늘리고 메웁니다. 플랫폼 쪽(iPhone Vision 손 인식 등) 마스크를 주면 합칩니다.
+
+### 필기 지우기 (`handwriting.rs`)
+
+종이 배경으로 나눈 색에서 채도(최대-최소 채널) 50 이상이고 종이보다 어두운 화소를 색상각으로 파랑(190~270도), 빨강(330~20도), 초록(80~170도)에 나눕니다. 면적이 0.2% 이상이고 외곽 상자를 55% 이상 채운 덩어리(인쇄된 색 상자, 로고)는 남깁니다. 기본값은 꺼짐입니다.
+
+### 메우기 (`inpaint.rs`)
+
+마스크 영역마다 긴 변 절반(최소 32화소) 여백을 붙인 조각을 만들고 겹치면 합칩니다. LaMa는 512 고정 입력이라, 한 변이 1024보다 큰 조각은 768 타일(128 겹침)로 나눠 차례로 메웁니다(앞 타일 결과가 다음 타일 문맥). 줄였다 늘린 결과는 종이 색이 어긋나서 마스크 밖 평균 차이만큼 옮겨 붙이고, 경계는 2화소 부드럽게 섞습니다.
+
+모델이 없으면 pull-push 보간으로 메웁니다. 둘레의 글자 화소를 섞으면 회색 얼룩이 되므로 종이 밝기(상위 10%)의 75%보다 어두운 화소는 빼고 메웁니다.
+
+## 평가
+
+`crates/leaf-vision/tests/synthetic.rs`. 실제 책이나 스캔은 쓰지 않습니다. 시스템 글꼴(Times New Roman, Arial, DejaVu)이 있으면 뜻 없는 낱말로 페이지를 그리고, 없으면 낱말 크기 막대로 대신합니다. 원통형 굽음, 접힌 쪽 그림자, 손가락(타원), 색 펜 물결선을 합성해 넣습니다.
+
+```sh
+cargo test -p leaf-vision                                   # 모델 없이 도는 시험
+LEAF_MODELS_DIR=~/leedo/leaf-models cargo test -p leaf-vision --release --test synthetic          # 모델 시험 포함
+LEAF_MODELS_DIR=~/leedo/leaf-models LEAF_EVAL_OUT=/tmp/leaf-eval \
+  cargo test -p leaf-vision --release --test synthetic -- --ignored --nocapture                  # 전후 이미지와 속도
+LEAF_MODELS_DIR=~/leedo/leaf-models cargo run -p leaf-vision --release --example bench            # 단계별 시간
+```
+
+지표는 두 가지입니다. 글줄 뾰족함은 이진화한 뒤 가로 행별 잉크 수의 표준편차/평균이고, 글줄이 곧을수록 큽니다. SSIM은 평평한 원본과 가로 400으로 맞춰 비교하는데, 보정 결과는 페이지 경계에 맞춰 잘리고 비율이 조금 달라 정렬 오차가 섞이므로 참고 값입니다.
+
+### 결과 (2026-11-05, Apple M5 Pro 18코어)
+
+| 항목 | 휜 입력 | 보정 | 더 펴기 | 평평한 원본 |
+|---|---|---|---|---|
+| 글줄 뾰족함(1200x1650 페이지) | 0.98 | 1.45 | 1.54 | 1.71 |
+| SSIM | 0.34 | 0.44 | 0.40 | 1 |
+
+- 두 페이지 분리: 기울기 0, 2.5, -3도 합성 펼침면에서 위치 오차 10화소 미만, 기울기 오차 1도 이내. 한 페이지는 나누지 않음
+- 조명 보정: 왼쪽 그림자(밝기 차 60 이상)가 15 미만으로 줄어듦
+- 손가락: 정답 마스크를 97% 이상 덮고, 넘친 면적은 2% 미만. 지운 뒤 다시 찾으면 0개
+- 필기: 색 화소가 98% 이상 사라지고, 펜이 지나지 않은 검은 글자는 99.5% 이상 남음
+
+### 속도 (1200만 화소 페이지 3000x4000, 중앙값 5회)
+
+| 단계 | CoreML | CPU |
+|---|---|---|
+| 곡면 보정 예측(축소 포함) | 9 ms | 244 ms |
+| 고해상도 재표본(출력 약 1050만 화소) | 7 ms | 7 ms |
+| `Enhanced` 필터 | 11 ms | 11 ms |
+| 보정 + 필터 합계 | 27 ms | 262 ms |
+| 더 펴기 전체 | 32 ms | 505 ms |
+| 세션 준비(첫 호출, CoreML 캐시 있음) | 0.1~0.2 s | 0.6 s |
+
+목표(2초)보다 훨씬 빠릅니다. JPEG 디코딩, 인코딩은 포함하지 않았습니다(앱 몫). `Grayscale` 14 ms, `BlackWhite` 20 ms. LaMa는 512 입력 한 번에 약 1.1초(CPU)이고 세션 준비가 약 2.5초입니다. 450x900 크기 손가락 하나는 타일 여러 개라 약 3.4초, 고전 보간은 50 ms입니다.
+
+## 한계
+
+- 곡면 보정과 손가락, 필기 지우기는 vFlat 자체 모델이 아니라 공개 모델이라 같은 품질을 장담하지 못합니다. 합성 페이지로만 쟀고, 실제 사진 비교는 아직 안 했습니다
+- 더 펴기는 합성 시험에서 글줄은 더 곧아졌지만 SSIM은 보정 한 번보다 낮았습니다(여백을 조금 더 자름). 실제 사진으로 확인이 필요합니다
+- 손가락 아래 가려진 글자는 되살리지 못합니다. LaMa는 그럴듯한 획을 지어내고, 고전 보간은 종이색으로 메웁니다
+- 피부색과 비슷한 살구색, 주황색 인쇄물이 테두리에 닿아 있으면 손으로 잘못 볼 수 있습니다. 장갑, 매우 어둡거나 밝은 피부, 강한 색 조명에서는 놓칠 수 있습니다. 이때는 플랫폼 손 마스크가 보완합니다
+- 필기 지우기는 색 펜만 됩니다. 연필과 검은 펜은 인쇄 글자와 색으로 구별할 수 없습니다. 파란 제목처럼 가는 색 인쇄 글자는 펜과 같이 지워지고, 형광펜(노랑)은 글자를 덮고 있어 지우지 않습니다. 넘으려면 손글씨 분할 모델이 필요합니다
+- 펜이 글자 위를 지나간 자리는 글자 획이 흐려지거나 지어낸 모양이 됩니다
+- `Enhanced`는 잘린 가장자리에 걸친 좁고 진한 접힌 선 그림자를 다 걷지 못하고 옅은 띠가 남을 수 있습니다
