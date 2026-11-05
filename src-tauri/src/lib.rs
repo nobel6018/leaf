@@ -5,6 +5,7 @@
 mod actions;
 mod ai;
 mod ask;
+mod book;
 pub mod busy;
 mod calendar;
 mod download;
@@ -138,6 +139,8 @@ pub fn run() {
             actions::delete_document,
             import::import_files,
             import::pick_import_files,
+            book::book_page_report,
+            book::sort_by_page_numbers,
         ])
         .build(tauri::generate_context!())
         .expect("leaf 앱을 시작하지 못했다")

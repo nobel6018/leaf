@@ -1,8 +1,8 @@
-//! 원근 보정이 끝난 사진 한 장을 출력 페이지(한 장 또는 두 장)로 만든다.
+//! 원근 보정이 끝난 사진 한 장을 출력 페이지(한 장, 두 장, 3단 접지는 세 장)로 만든다.
 //!
 //! 순서와 이유
 //! 1. 손가락 지우기: 손은 사진 테두리에서 들어오므로 나누기 전 원본에서 찾는다. 플랫폼 손 마스크도 원본 좌표다
-//! 2. 두 페이지 분리(`PageLayout::Spread`일 때만). 신뢰도가 낮으면 한 페이지로 둔다
+//! 2. 두 페이지 분리(`PageLayout::Spread`), 세 면 분리(`PageLayout::Trifold`). 신뢰도가 낮으면 통째 한 장으로 둔다
 //! 3. 곡면 보정: 페이지마다. 접힌 선 그림자가 한쪽 끝에 있어야 모델이 페이지 경계를 잘 잡는다
 //! 4. 필기 지우기: 펴진 뒤라 획이 덜 휘어 있고, 조명 보정 전이라 원래 색이 남아 있다
 //! 5. 조명 보정과 필터: 마지막
@@ -21,6 +21,7 @@ use crate::filter::apply_filter;
 use crate::fingers::{FingerReport, remove_fingers};
 use crate::handwriting::{HandwritingReport, remove_handwriting};
 use crate::models::Models;
+use crate::fold::{Folds, Trifold, split_trifold};
 use crate::split::{Gutter, Split, split_spread};
 
 #[derive(Debug, Clone, Default)]
@@ -44,6 +45,8 @@ pub struct SourceReport {
     pub fingers: Option<FingerReport>,
     /// Spread로 들어온 사진의 접힌 선. 한 페이지로 떨어졌으면 confidence가 기준 미만
     pub gutter: Option<Gutter>,
+    /// Trifold로 들어온 사진의 접힌 선 두 개. 통째로 떨어졌으면 confidence가 기준 미만
+    pub folds: Option<Folds>,
     pub timings: Vec<(&'static str, u128)>,
 }
 
@@ -75,9 +78,19 @@ pub fn process_source(
     };
 
     let mut gutter = None;
+    let mut folds = None;
     let parts: Vec<(PagePart, RgbImage)> = match layout {
-        // TODO(3단 접지): 접힌 선 두 개를 찾아 세 면으로 나누기. 그 전까지는 통째 한 장
-        PageLayout::Single | PageLayout::Trifold => vec![(PagePart::Whole, source.clone())],
+        PageLayout::Single => vec![(PagePart::Whole, source.clone())],
+        PageLayout::Trifold => match timed(&mut timings, "split", || split_trifold(source)) {
+            Trifold::Panels { panels, folds: f } => {
+                folds = Some(f);
+                (0u8..).zip(panels).map(|(index, panel)| (PagePart::Panel(index), panel)).collect()
+            }
+            Trifold::Whole { folds: f } => {
+                folds = Some(f);
+                vec![(PagePart::Whole, source.clone())]
+            }
+        },
         PageLayout::Spread => match timed(&mut timings, "split", || split_spread(source)) {
             Split::Spread { left, right, gutter: g } => {
                 gutter = Some(g);
@@ -95,7 +108,7 @@ pub fn process_source(
         let (image, report) = process_page(&page, options, models)?;
         pages.push(ProcessedPage { part, image, report });
     }
-    Ok((pages, SourceReport { fingers, gutter, timings }))
+    Ok((pages, SourceReport { fingers, gutter, folds, timings }))
 }
 
 /// 나눠진 페이지 하나에 곡면 보정, 필기 지우기, 필터를 건다(손가락 지우기는 `process_source`에서)
