@@ -2,10 +2,12 @@
 //!
 //! @see docs/architecture.md
 
+mod actions;
 mod ai;
 pub mod busy;
 mod download;
 mod export;
+mod import;
 pub mod inbox;
 mod library;
 mod models;
@@ -22,6 +24,29 @@ use tauri::{Listener, Manager};
 
 pub fn run() {
     tauri::Builder::default()
+        // 다른 플러그인보다 먼저 등록해야 두 번째 실행을 가장 먼저 가로챈다. 링크는 deep-link 플러그인이 받는다
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            if args.iter().any(|a| a.starts_with("leaf:")) {
+                return;
+            }
+            let files = actions::opened_files(args.iter().skip(1).map(std::path::PathBuf::from));
+            if files.is_empty() {
+                actions::show_main(app);
+            } else {
+                actions::dispatch(app, actions::Action::Import { paths: files });
+            }
+        }))
+        .plugin(tauri_plugin_deep_link::init())
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, _shortcut, event| {
+                    if event.state() == tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                        actions::show_main(app);
+                    }
+                })
+                .build(),
+        )
+        .manage(actions::Bus::new())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -29,6 +54,9 @@ pub fn run() {
         .manage(pipeline::Pipeline::default())
         .setup(|app| {
             update::add_update_menu(app)?;
+            actions::add_import_menu(app)?;
+            actions::register_global_shortcut(app.handle());
+            setup_deep_links(app)?;
             let app_data_dir = app.path().app_data_dir()?;
             let store = Arc::new(store::Store::new(&app_data_dir));
             store.clean_stale_parts();
@@ -93,7 +121,47 @@ pub fn run() {
             models::models_status,
             models::install_models,
             models::cancel_model_install,
+            actions::frontend_ready,
+            actions::reveal_document,
+            actions::quick_open_entries,
+            actions::document_markdown,
+            actions::delete_document,
+            import::import_files,
+            import::pick_import_files,
         ])
-        .run(tauri::generate_context!())
-        .expect("leaf 앱을 시작하지 못했다");
+        .build(tauri::generate_context!())
+        .expect("leaf 앱을 시작하지 못했다")
+        .run(|app, event| {
+            // Finder에서 "다음으로 열기 > leaf"를 고르거나 Dock 아이콘에 파일을 끌어다 놓은 경우
+            #[cfg(target_os = "macos")]
+            if let tauri::RunEvent::Opened { urls } = &event {
+                let files = actions::opened_files(urls.iter().filter_map(|u| u.to_file_path().ok()));
+                if !files.is_empty() {
+                    actions::dispatch(app, actions::Action::Import { paths: files });
+                }
+            }
+            let _ = (app, event);
+        });
+}
+
+/// leaf:// 링크. 앱이 떠 있으면 on_open_url로, 링크로 앱을 처음 띄웠으면 get_current로 온다.
+/// 화면이 준비되기 전 요청은 actions::Bus가 보관했다가 frontend_ready로 넘긴다
+fn setup_deep_links(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    use tauri_plugin_deep_link::DeepLinkExt;
+    // 설치한 앱(.app)이 스킴을 등록한다. 개발 중인 Windows와 Linux만 직접 등록한다
+    #[cfg(all(debug_assertions, any(windows, target_os = "linux")))]
+    app.deep_link().register_all()?;
+
+    let handle = app.handle().clone();
+    app.deep_link().on_open_url(move |event| {
+        for url in event.urls() {
+            actions::handle_url(&handle, &url);
+        }
+    });
+    if let Some(urls) = app.deep_link().get_current()? {
+        for url in urls {
+            actions::handle_url(app.handle(), &url);
+        }
+    }
+    Ok(())
 }

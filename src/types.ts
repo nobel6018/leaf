@@ -193,3 +193,32 @@ export interface InboxStatus {
   available: boolean;
   pending: number;
 }
+
+// 단축키, leaf:// 링크, 가져오기 (src-tauri/src/actions.rs, import.rs)
+export type AppAction =
+  | { type: "showWindow" }
+  | { type: "open"; id: string; page: number | null }
+  | { type: "search"; query: string }
+  | { type: "import"; paths: string[] }
+  | { type: "pickImport" };
+
+export interface QuickOpenEntry {
+  id: string;
+  name: string;
+  kind: DocumentKind;
+  session: string | null;
+  tags: string[];
+  pageCount: number;
+  createdAt: string;
+}
+
+export interface ImportedDocument {
+  documentId: string;
+  name: string;
+  pages: number;
+}
+
+export interface ImportResult {
+  documents: ImportedDocument[];
+  skipped: { path: string; reason: string }[];
+}

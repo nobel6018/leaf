@@ -30,9 +30,11 @@ interface Props {
   progress: Record<string, Progress>;
   onOpen: (id: string) => void;
   onError: (e: string) => void;
+  /** 문서 카드 우클릭. App이 OS 메뉴를 띄운다(src/documentMenu.ts) */
+  onContextMenu?: (doc: DocumentSummary) => void;
 }
 
-export function LibraryView({ documents, progress, onOpen, onError }: Props) {
+export function LibraryView({ documents, progress, onOpen, onError, onContextMenu }: Props) {
   const [csvBusy, setCsvBusy] = useState<string | null>(null);
 
   // 세션은 최근 문서가 있는 순서대로. 문서는 이미 최신순으로 온다
@@ -90,7 +92,16 @@ export function LibraryView({ documents, progress, onOpen, onError }: Props) {
               {docs.map((doc) => {
                 const label = stateLabel(doc.state, progress[doc.id]);
                 return (
-                  <button className="doc-card" key={doc.id} onClick={() => onOpen(doc.id)}>
+                  <button
+                    className="doc-card"
+                    key={doc.id}
+                    onClick={() => onOpen(doc.id)}
+                    onContextMenu={(e) => {
+                      if (!onContextMenu) return;
+                      e.preventDefault();
+                      onContextMenu(doc);
+                    }}
+                  >
                     <div className="cover">
                       {doc.cover ? (
                         <img src={fileUrl(doc.cover, doc.state.status)} alt="" loading="lazy" />

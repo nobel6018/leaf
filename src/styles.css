@@ -190,3 +190,49 @@ mark { background: #ffe58a; border-radius: 2px; }
 /* 보정 모델 (src/views/ModelsPanel.tsx) */
 .model-list { list-style: none; padding: 0; margin: 8px 0; }
 .model-list li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; }
+
+/* 빠른 찾기, 알림 줄, 끌어다 놓기 (src/views/QuickOpen.tsx, src/App.tsx). @see docs/shortcuts-and-deep-links.md */
+.nav-action { display: flex; align-items: center; justify-content: space-between; gap: 6px; color: var(--accent); }
+.nav-key { font-size: 12px; color: var(--muted); }
+.notice-bar {
+  display: flex; align-items: center; gap: 12px;
+  margin: 12px 24px 0; padding: 4px 4px 4px 14px; border-radius: 8px; background: var(--accent-soft); color: var(--accent);
+}
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 20; background: rgba(20, 24, 20, 0.45);
+  display: flex; align-items: flex-start; justify-content: center; padding-top: 8vh;
+}
+.quick-open {
+  width: min(980px, 94vw); height: min(640px, 82vh); height: min(640px, 82dvh);
+  display: flex; flex-direction: column; background: var(--paper); border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25); overflow: hidden;
+}
+.quick-input { margin: 12px; font-size: 16px; }
+.quick-body { flex: 1; min-height: 0; display: flex; border-top: 1px solid var(--line); }
+.quick-list { width: 46%; flex: none; margin: 0; padding: 6px; list-style: none; overflow: auto; border-right: 1px solid var(--line); }
+.quick-empty { padding: 16px 12px; }
+.quick-row {
+  min-height: 44px; padding: 6px 10px; border-radius: 8px; cursor: pointer;
+  display: flex; flex-direction: column; justify-content: center; gap: 2px;
+}
+.quick-row.selected { background: var(--accent-soft); }
+.quick-row.hit { flex-direction: row; align-items: center; gap: 8px; padding-left: 26px; font-size: 13px; }
+.quick-title { font-weight: 600; overflow-wrap: anywhere; }
+.quick-meta { font-size: 12px; color: var(--muted); }
+.quick-hit-page { flex: none; font-size: 12px; color: var(--muted); min-width: 34px; }
+.quick-hit-text { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.4; }
+.quick-preview { flex: 1; min-width: 0; overflow: auto; padding: 14px 16px; }
+.quick-preview h3 { font-size: 16px; margin: 0 0 4px; overflow-wrap: anywhere; }
+.quick-preview .hint { margin: 0 0 8px; font-size: 12px; }
+.quick-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
+.quick-image { display: flex; justify-content: center; background: #e9e6da; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+.quick-image img { max-width: 100%; max-height: 260px; object-fit: contain; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18); }
+.quick-text { white-space: pre-wrap; line-height: 1.55; margin: 0; user-select: text; }
+.quick-footer { display: flex; align-items: center; gap: 12px; padding: 4px 8px 4px 14px; border-top: 1px solid var(--line); font-size: 12px; }
+.error-text { color: var(--danger); }
+.drop-overlay {
+  position: fixed; inset: 0; z-index: 30; pointer-events: none;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(79, 122, 58, 0.18); outline: 3px dashed var(--accent); outline-offset: -12px;
+}
+.drop-card { background: var(--paper); color: var(--accent); padding: 18px 24px; border-radius: 12px; font-weight: 600; }

@@ -6,6 +6,9 @@ import type {
   Edits,
   ExportFile,
   ExportFormat,
+  AppAction,
+  ImportResult,
+  QuickOpenEntry,
   InboxStatus,
   OcrPage,
   PairingCode,
@@ -66,6 +69,15 @@ export const api = {
     invokeOptional<{ folder: string; csv: string; rows: number; pdfs: number; skipped: string[] }>("export_notion_csv", { session }),
   exportDocx: (documentId: string) => invokeOptional<unknown>("export_docx", { documentId }),
   exportAiBundle: (documentId: string) => invokeOptional<unknown>("export_ai_bundle", { documentId }),
+
+  // 단축키, 링크, 우클릭 메뉴, 가져오기 (docs/shortcuts-and-deep-links.md, docs/context-menu.md, docs/import.md)
+  frontendReady: () => invoke<{ pending: AppAction[]; shortcutError: string | null }>("frontend_ready"),
+  revealDocument: (documentId: string) => invoke<void>("reveal_document", { documentId }),
+  quickOpenEntries: () => invoke<QuickOpenEntry[]>("quick_open_entries"),
+  documentMarkdown: (documentId: string) => invoke<string>("document_markdown", { documentId }),
+  deleteDocument: (documentId: string) => invoke<void>("delete_document", { documentId }),
+  importFiles: (paths: string[]) => invoke<ImportResult>("import_files", { paths }),
+  pickImportFiles: () => invoke<string[]>("pick_import_files"),
 };
 
 // 선택 목록 순서. 스캔이 중심이라 일반 문서가 먼저, 팜플렛(AI 정리 대상)은 마지막
