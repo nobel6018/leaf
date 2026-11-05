@@ -20,6 +20,8 @@ targets:
       path: Leaf/Info.plist
       properties:
         CFBundleDisplayName: leaf
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         NSCameraUsageDescription: 거치대에 올린 종이와 책을 촬영합니다.

@@ -27,6 +27,8 @@ struct AnalysisFrame: @unchecked Sendable {
 struct SyntheticHint: Sendable {
     var quad: Quad?
     var handVisible: Bool
+    /// 지금 놓인 장 번호. 시뮬레이터에서는 feature print 거리를 못 재므로 같은 장인지 이것으로 판단한다
+    var pageNumber: Int
 }
 
 struct FrameAnalysis: Sendable {
@@ -50,6 +52,7 @@ final class FrameAnalyzer: @unchecked Sendable {
     private var previousThumbnail: [UInt8]?
     private var lastFrame: AnalysisFrame?
     private var lastCapturePrint: VNFeaturePrintObservation?
+    private var lastCaptureHintPage: Int?
 
     func analyze(_ frame: AnalysisFrame, wantsDistance: Bool) -> FrameAnalysis {
         lock.lock()
@@ -69,19 +72,20 @@ final class FrameAnalyzer: @unchecked Sendable {
             let points = (try? observation.recognizedPoints(.all)) ?? [:]
             return points.values.filter { $0.confidence > Self.handJointConfidence }.count >= Self.handMinimumJoints
         }
-        // 합성 소스의 손은 그림이라 Vision이 못 찾는다. 테두리는 Vision이 찾으면 그쪽을 쓴다
+        // 합성 소스는 정답을 같이 준다. 시뮬레이터 Vision은 문서 감지가 엉뚱한 띠를 내거나 비어 있어(2026-11-05 확인)
+        // 실기기와 다르므로 믿지 않는다. 손은 그림이라 어차피 못 찾는다
         var usedHint = false
         if let hint = frame.hint {
-            if quad == nil, hint.quad != nil {
-                quad = hint.quad
-                usedHint = true
-            }
-            hand = hand || hint.handVisible
+            quad = hint.quad
+            hand = hint.handVisible
+            usedHint = true
         }
 
         let motion = measureMotion(frame)
         var distance: Float?
-        if wantsDistance, let reference = lastCapturePrint, let print = featurePrint(handler) {
+        if wantsDistance, let hint = frame.hint, let page = lastCaptureHintPage {
+            distance = hint.pageNumber == page ? 0 : 1
+        } else if wantsDistance, let reference = lastCapturePrint, let print = featurePrint(handler) {
             var value: Float = 0
             if (try? print.computeDistance(&value, to: reference)) != nil {
                 distance = value
@@ -105,6 +109,10 @@ final class FrameAnalyzer: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         guard let lastFrame else { return }
+        if let hint = lastFrame.hint {
+            lastCaptureHintPage = hint.pageNumber
+            return
+        }
         lastCapturePrint = featurePrint(makeHandler(lastFrame))
     }
 
@@ -112,6 +120,7 @@ final class FrameAnalyzer: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         lastCapturePrint = nil
+        lastCaptureHintPage = nil
     }
 
     /// 저장한 사진(HEIC)에서 다시 테두리를 찾는다. 원본에 EXIF 회전을 적용한 축소본을 쓰므로 결과가 곧 manifest 좌표다

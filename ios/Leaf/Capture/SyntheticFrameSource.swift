@@ -40,7 +40,11 @@ final class SyntheticFrameSource: FrameSource, @unchecked Sendable {
                     image: .cgImage(image),
                     orientation: .up,
                     time: time,
-                    hint: SyntheticHint(quad: scene.paperVisible ? scene.quad : nil, handVisible: scene.handVisible)
+                    hint: SyntheticHint(
+                        quad: scene.paperVisible ? scene.quad : nil,
+                        handVisible: scene.handVisible,
+                        pageNumber: scene.pageNumber
+                    )
                 ))
             }
             timer.resume()

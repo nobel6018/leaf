@@ -84,7 +84,26 @@ struct DocumentsView: View {
                     Task { await app.sendPending() }
                 }
         }
+        #if DEBUG
+        .task { openDebugScreen() }
+        #endif
     }
+
+    #if DEBUG
+    /// 시뮬레이터 화면 확인용. `-leafScreen capture|new|settings` 로 켜면 그 화면을 바로 연다(docs/ios.md)
+    private func openDebugScreen() {
+        guard let screen = UserDefaults.standard.string(forKey: "leafScreen") else { return }
+        switch screen {
+        case "capture":
+            let manifest = app.documents.first { $0.pages.isEmpty }
+                ?? (try? app.createDocument(name: "", kind: .pamphlet, session: "2026 예시박람회"))
+            capturing = manifest.map { CaptureRequest(manifest: $0) }
+        case "new": showingNew = true
+        case "settings": showingSettings = true
+        default: break
+        }
+    }
+    #endif
 
     /// 최근 문서의 세션이 위로 온다
     private var sessions: [String] {

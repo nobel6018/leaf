@@ -133,6 +133,7 @@ final class CaptureModel {
         isSaving = true
         defer { isSaving = false }
         let previewQuad = quad
+        let trustPreview = usingHint
         do {
             let photo = try await source.capturePhoto()
             // 분석 프레임의 프린트를 기준으로 둔다. 다음 판단도 분석 프레임끼리 비교한다
@@ -145,7 +146,8 @@ final class CaptureModel {
             let target = retakeTarget.flatMap { id in current.pages.contains { $0.id == id } ? id : nil }
             let updated = try await Task.detached(priority: .userInitiated) {
                 // 사진에서 다시 찾은 테두리가 더 정확하다. 못 찾으면 미리보기 테두리를 쓴다(같은 화각, 같은 방향)
-                let quad = FrameAnalyzer.detectQuad(inPhoto: photo.data) ?? previewQuad
+                // 시뮬레이터 합성 화면은 미리보기 테두리가 정답이다
+                let quad = trustPreview ? previewQuad : FrameAnalyzer.detectQuad(inPhoto: photo.data) ?? previewQuad
                 return try store.addPage(
                     to: current,
                     photo: photo.data,
