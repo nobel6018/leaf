@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" fill="#f6f4ec"/>
+  <!-- 종이 한 장(leaf)이 잎 모양으로 접힌 형태. 가운데 선은 책의 접힌 선 -->
+  <path d="M512 184 C 760 260 836 520 724 760 C 660 840 580 860 512 860 C 444 860 364 840 300 760 C 188 520 264 260 512 184 Z" fill="#4f7a3a"/>
+  <path d="M512 250 L 512 820" stroke="#f6f4ec" stroke-width="28" stroke-linecap="round"/>
+  <path d="M512 430 L 640 340 M512 560 L 670 470 M512 430 L 384 340 M512 560 L 354 470" stroke="#f6f4ec" stroke-width="20" stroke-linecap="round" opacity="0.85"/>
+</svg>

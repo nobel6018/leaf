@@ -1,0 +1,119 @@
+name: release
+
+# v로 시작하는 태그를 올리면 Mac 설치 파일(dmg), Mac 앱 안 업데이트 파일, iPhone 앱(.ipa)과 AltStore 소스를
+# 만들어 GitHub Release에 붙인다. 모든 파일이 붙으면 초안을 공개한다(docs/release.md).
+# Windows는 Mac 앱이 macOS API(Vision, ImageIO)를 직접 쓰는 동안 뺀다. OCR, 디코딩의 Windows 모듈이 생기면 넣는다
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IS_TAG: ${{ startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  desktop:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - name: 러너 이미지 버전을 캐시 키로
+        run: echo "RUNNER_IMAGE=${ImageOS:-unknown}-${ImageVersion:-unknown}" >> "$GITHUB_ENV"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: v1-release
+          shared-key: desktop-${{ env.RUNNER_IMAGE }}
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm tauri build
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+      - name: Release에 올리기
+        if: env.IS_TAG == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          # macOS 기본 bash는 3.2라 mapfile이 없다(sori v0.6.2에서 dmg가 빠진 원인)
+          files=()
+          while IFS= read -r -d '' f; do files+=("$f"); done < <(find target/release/bundle -type f -name '*.dmg' -print0)
+          # 업데이트 파일은 이름이 leaf.app.tar.gz로 고정이라 버전과 아키텍처를 붙여 올린다
+          app=target/release/bundle/macos/leaf.app.tar.gz
+          cp "$app" "leaf_${TAG#v}_aarch64.app.tar.gz"
+          cp "$app.sig" "leaf_${TAG#v}_aarch64.app.tar.gz.sig"
+          files+=("leaf_${TAG#v}_aarch64.app.tar.gz" "leaf_${TAG#v}_aarch64.app.tar.gz.sig")
+          .github/scripts/upload-release.sh "${files[@]}"
+
+  updater:
+    needs: desktop
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: latest.json 만들기
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: .github/scripts/updater-manifest.sh
+      - name: Release에 올리기
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: .github/scripts/upload-release.sh latest.json
+
+  # iPhone 앱. AltStore가 설치할 때 본인 Apple ID로 서명하므로 서명 없이 빌드해 .ipa로 묶는다
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+      - run: brew install xcodegen
+      - name: 빌드
+        working-directory: ios
+        run: |
+          xcodegen generate
+          xcodebuild build -project Leaf.xcodeproj -scheme Leaf -configuration Release \
+            -destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO
+      - name: .ipa로 묶기
+        run: |
+          app=ios/build/Build/Products/Release-iphoneos/Leaf.app
+          test -d "$app"
+          mkdir -p ipa/Payload && cp -R "$app" ipa/Payload/leaf.app
+          (cd ipa && zip -qry ../leaf-ios.ipa Payload)
+          ls -la leaf-ios.ipa
+      - name: AltStore 소스 만들기
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          .github/scripts/altstore-source.sh ipa/Payload/leaf.app leaf-ios.ipa "$TAG" > apps.json
+          cat apps.json
+      - name: Release에 올리기
+        if: env.IS_TAG == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: .github/scripts/upload-release.sh leaf-ios.ipa apps.json
+
+  publish:
+    needs: [desktop, updater, ios]
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Release 공개
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
