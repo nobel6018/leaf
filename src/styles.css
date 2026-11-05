@@ -190,3 +190,56 @@ mark { background: #ffe58a; border-radius: 2px; }
 /* 보정 모델 (src/views/ModelsPanel.tsx) */
 .model-list { list-style: none; padding: 0; margin: 8px 0; }
 .model-list li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; }
+
+/* 태그, 질문, 묶음 추천 (src/views/{TagTree,TagEditor,AskPanel,AskWindow}.tsx, docs/organize.md, docs/ask.md) */
+.modal[hidden], .side-pane[hidden] { display: none; }
+.library-layout { display: flex; align-items: flex-start; gap: 24px; }
+.library-main { flex: 1; min-width: 0; }
+.tag-tree { width: 220px; flex: none; position: sticky; top: 0; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 6px; }
+.tag-tree ul { list-style: none; margin: 0; padding: 0; }
+.tag-tree-head { display: flex; align-items: center; gap: 6px; width: 100%; min-height: 44px; padding: 0 6px; border: 0; border-radius: 8px; background: transparent; text-align: left; }
+.tag-tree-title { font-weight: 600; }
+.tag-tree-current { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.tag-tree-current.active { color: var(--accent); font-weight: 600; }
+.tag-row { display: flex; align-items: center; gap: 2px; border-radius: 8px; }
+.tag-row.selected { background: var(--accent-soft); }
+.tag-row.selected .tag-name { color: var(--accent); font-weight: 600; }
+.tag-toggle { flex: none; width: 32px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; border: 0; background: transparent; color: var(--muted); }
+.tag-name { flex: 1; min-width: 0; min-height: 44px; padding: 0 4px; border: 0; background: transparent; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tag-name.muted { color: var(--muted); }
+.tag-count { flex: none; padding: 0 8px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tag-empty { padding: 8px; font-size: 12px; }
+.tag-editor { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 10px; }
+.tag-chip { display: inline-flex; align-items: center; gap: 2px; padding-left: 10px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+.tag-chip-text { overflow-wrap: anywhere; }
+.tag-chip button { min-width: 44px; min-height: 44px; border: 0; background: transparent; color: inherit; font-size: 16px; border-radius: 999px; }
+.tag-input-wrap { position: relative; flex: 1; min-width: 140px; }
+.tag-input { width: 100%; }
+.tag-suggestions { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 5; list-style: none; margin: 0; padding: 4px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12); }
+.tag-suggestions button { width: 100%; min-height: 44px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent; text-align: left; }
+.tag-suggestions button.active, .tag-suggestions button:focus-visible { background: var(--accent-soft); color: var(--accent); }
+.tag-ai { font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #e3eef6; color: #2f5d7c; }
+.tag-suggested { margin-top: 8px; }
+.organize .button-row { margin-top: 4px; }
+.session-suggest { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.session-hint p { margin: 6px 0; }
+.side-tabs { flex: none; }
+.side-pane { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+.ask { display: flex; flex-direction: column; gap: 10px; min-height: 0; flex: 1; }
+.ask-turns { flex: 1; min-height: 120px; overflow: auto; display: flex; flex-direction: column; gap: 14px; }
+.ask-question { margin: 0; padding: 8px 12px; border-radius: 10px; background: var(--accent-soft); align-self: flex-end; max-width: 90%; white-space: pre-wrap; }
+.ask-answer { line-height: 1.6; user-select: text; }
+.ask-answer p, .ask-answer ul, .ask-answer ol { margin: 0 0 8px; }
+.ask-answer ul, .ask-answer ol { padding-left: 20px; }
+.ask-answer h4 { margin: 10px 0 6px; font-size: 14px; }
+.ask-error { color: var(--danger); }
+.cite { display: inline-flex; align-items: center; min-height: 32px; margin: 0 2px; padding: 0 8px; border: 1px solid var(--accent); border-radius: 999px; background: var(--paper); color: var(--accent); font-size: 12px; vertical-align: baseline; }
+.cite.missing { border-color: var(--line); color: var(--muted); }
+.ask-form { display: flex; gap: 6px; }
+.ask-form input { flex: 1; min-width: 0; }
+.ask-foot { margin: 0; font-size: 12px; }
+.ask-window { height: min(760px, 90vh); }
+.ask-window .modal-head select { max-width: 200px; }
+@media (hover: none), (max-width: 640px) {
+  .cite { min-height: 44px; }
+}

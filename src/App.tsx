@@ -8,6 +8,7 @@ import { LibraryView } from "./views/LibraryView";
 import { DocumentView } from "./views/DocumentView";
 import { SearchView } from "./views/SearchView";
 import { SettingsView } from "./views/SettingsView";
+import { AskWindow } from "./views/AskWindow";
 
 export type Route =
   | { view: "library" }
@@ -125,6 +126,8 @@ export default function App() {
         )}
         {route.view === "settings" && <SettingsView update={update} onError={setError} />}
       </main>
+      {/* ⌘J 모든 문서에 질문(docs/ask.md). 다른 곳에서는 openAsk()로 연다 */}
+      <AskWindow documents={documents} onOpen={(id, outputId) => setRoute({ view: "document", id, outputId: outputId ?? undefined })} />
     </div>
   );
 }

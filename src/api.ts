@@ -1,5 +1,10 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import type {
+  AskAnswer,
+  CalendarAccess,
+  DocumentTags,
+  SessionSuggestion,
+  TagSuggestion,
   DocumentDetail,
   DocumentHits,
   DocumentSummary,
@@ -66,6 +71,16 @@ export const api = {
     invokeOptional<{ folder: string; csv: string; rows: number; pdfs: number; skipped: string[] }>("export_notion_csv", { session }),
   exportDocx: (documentId: string) => invokeOptional<unknown>("export_docx", { documentId }),
   exportAiBundle: (documentId: string) => invokeOptional<unknown>("export_ai_bundle", { documentId }),
+
+  // 질문, 태그, 캘린더 묶음 추천(docs/ask.md, docs/organize.md)
+  askDocument: (documentId: string, question: string) => invoke<AskAnswer>("ask_document", { documentId, question }),
+  askLibrary: (question: string, tag: string | null, session: string | null) =>
+    invoke<AskAnswer>("ask_library", { question, tag, session }),
+  documentTags: () => invoke<Record<string, DocumentTags>>("document_tags"),
+  setDocumentTags: (documentId: string, tags: string[]) => invoke<string[]>("set_document_tags", { documentId, tags }),
+  suggestTags: (documentId: string) => invoke<TagSuggestion>("suggest_tags", { documentId }),
+  calendarAccess: () => invoke<CalendarAccess>("calendar_access"),
+  suggestSession: (documentId: string) => invoke<SessionSuggestion>("suggest_session", { documentId }),
 };
 
 // 선택 목록 순서. 스캔이 중심이라 일반 문서가 먼저, 팜플렛(AI 정리 대상)은 마지막

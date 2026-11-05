@@ -17,6 +17,8 @@ import { stateLabel } from "./LibraryView";
 import { QuadEditor } from "./QuadEditor";
 import { ExportPanel } from "./ExportPanel";
 import { AiPanel } from "./AiPanel";
+import { DocumentOrganize } from "./TagEditor";
+import { AskPanel } from "./AskPanel";
 
 interface Props {
   documentId: string;
@@ -54,6 +56,8 @@ export function DocumentView({ documentId, initialOutputId, initialQuery, revisi
   const [highlight, setHighlight] = useState(initialQuery ?? "");
   const [nameDraft, setNameDraft] = useState<string | null>(null);
   const [sessionDraft, setSessionDraft] = useState<string | null>(null);
+  // 오른쪽 칸: 정보(처리, 내보내기, 정리) 또는 질문(docs/ask.md)
+  const [sideTab, setSideTab] = useState<"info" | "ask">("info");
 
   const load = useCallback(() => {
     api
@@ -326,6 +330,39 @@ export function DocumentView({ documentId, initialOutputId, initialQuery, revisi
         </div>
 
         <aside className="side">
+          <div className="segmented side-tabs" role="tablist">
+            <button role="tab" aria-selected={sideTab === "info"} className={sideTab === "info" ? "on" : ""} onClick={() => setSideTab("info")}>
+              정보
+            </button>
+            <button role="tab" aria-selected={sideTab === "ask"} className={sideTab === "ask" ? "on" : ""} onClick={() => setSideTab("ask")}>
+              질문
+            </button>
+          </div>
+          {/* 탭을 바꿔도 질문과 기다리던 답이 남도록 숨기기만 한다 */}
+          <div className="side-pane" hidden={sideTab !== "ask"}>
+            <AskPanel
+              documentId={documentId}
+              onCite={(_, outputId) => {
+                const index = outputId ? items.findIndex((i) => i.output?.id === outputId) : -1;
+                if (index >= 0) setSelected(index);
+              }}
+            />
+          </div>
+          <div className="side-pane" hidden={sideTab !== "info"}>
+            <DocumentOrganize
+              documentId={documentId}
+              kind={summary.kind}
+              session={summary.session}
+              tags={detail.edits.tags ?? []}
+              tagsByUser={detail.edits.tagsByUser ?? false}
+              ready={ready}
+              onAcceptSession={(session) => saveEdits((edits) => ({ ...edits, session }))}
+              onChanged={() => {
+                load();
+                onChanged();
+              }}
+              onError={onError}
+            />
           <OptionsPanel options={detail.options} onChange={setOptions} onReprocess={() => api.reprocess(documentId, true).then(onChanged).catch((e) => onError(String(e)))} />
           <ExportPanel documentId={documentId} isPamphlet={summary.kind === "pamphlet"} ready={ready} onError={onError} />
           {summary.kind === "pamphlet" && (
@@ -351,6 +388,7 @@ export function DocumentView({ documentId, initialOutputId, initialQuery, revisi
               </ul>
             </section>
           )}
+          </div>
         </aside>
       </div>
 
