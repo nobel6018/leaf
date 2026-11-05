@@ -9,6 +9,7 @@ pub mod bonjour;
 pub mod devices;
 pub mod pairing;
 pub mod server;
+pub mod sessions;
 
 use std::net::{Ipv4Addr, SocketAddr};
 use std::path::Path;
@@ -96,6 +97,7 @@ pub fn setup(app: &AppHandle, store: Arc<Store>, app_data_dir: &Path) {
         pairing: Arc::new(Pairing::default()),
         mac_name: mac_name.clone(),
         events: Arc::new(TauriEvents(app.clone())),
+        uploads: Default::default(),
     });
 
     let listening = Arc::new(AtomicBool::new(false));

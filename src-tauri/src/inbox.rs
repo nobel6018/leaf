@@ -142,6 +142,7 @@ fn import_one(dir: &Path, id: Uuid, store: &Store, request_download: &mut dyn Fn
         return Ok(false);
     }
 
+    let _busy = crate::busy::start(format!("iCloud에서 가져오는 중: {}", manifest.name));
     match store.import(&manifest, dir, ImportMode::Copy) {
         Ok(outcome) => {
             eprintln!("문서 받음 (iCloud): {id} (새 원본 {}개)", outcome.added_raw.len());

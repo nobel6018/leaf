@@ -2277,6 +2277,7 @@ dependencies = [
  "mdns-sd",
  "objc2-foundation",
  "reqwest",
+ "rustls",
  "serde",
  "serde_json",
  "sha2 0.10.9",

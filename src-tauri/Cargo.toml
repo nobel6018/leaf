@@ -37,4 +37,5 @@ objc2-foundation = { version = "0.3", features = ["NSLocale", "NSString", "NSArr
 
 [dev-dependencies]
 reqwest = { version = "0.13", default-features = false, features = ["json"] }
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
 tempfile = "3"

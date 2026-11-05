@@ -26,6 +26,7 @@ use uuid::Uuid;
 
 use super::devices::{Devices, PairedDevice};
 use super::pairing::{PairError, Pairing, random_token};
+use super::sessions::UploadSessions;
 use crate::store::{ImportMode, Store, StoreError, is_raw_path};
 
 /// 원본 한 장 상한. 4800만 화소 HEIC가 10MB 안팎이고, ProRAW DNG도 100MB를 넘지 않는다
@@ -51,6 +52,8 @@ pub struct TransferService {
     pub pairing: Arc<Pairing>,
     pub mac_name: String,
     pub events: Arc<dyn TransferEvents>,
+    /// 받는 중인 문서. 앱 안 업데이트가 전송 도중에 앱을 다시 켜지 않게 busy 등록부에 올린다
+    pub uploads: UploadSessions,
 }
 
 pub fn router(service: Arc<TransferService>) -> Router {
@@ -64,6 +67,14 @@ pub fn router(service: Arc<TransferService>) -> Router {
 }
 
 pub async fn serve(listener: tokio::net::TcpListener, service: Arc<TransferService>) -> io::Result<()> {
+    let sweeper = service.clone();
+    tokio::spawn(async move {
+        let mut tick = tokio::time::interval(std::time::Duration::from_secs(30));
+        loop {
+            tick.tick().await;
+            sweeper.uploads.sweep(std::time::Instant::now());
+        }
+    });
     axum::serve(listener, router(service)).await
 }
 
@@ -184,6 +195,7 @@ async fn pair(State(service): Shared, body: Bytes) -> Result<Json<Value>, ApiErr
 }
 
 struct Signed {
+    device_id: String,
     body_sha256: String,
 }
 
@@ -219,8 +231,21 @@ async fn authenticate(service: &Arc<TransferService>, method: &Method, path: &st
         return Err(ApiError::unauthorized("서명이 맞지 않는다"));
     }
     Ok(Signed {
+        device_id,
         body_sha256: body_sha256.to_ascii_lowercase(),
     })
+}
+
+/// busy 등록부에 보일 이름. 문서 이름은 manifest가 와야 알 수 있어 기기 이름과 문서 id를 쓴다
+fn upload_label(service: &TransferService, device_id: &str, document_id: Uuid) -> String {
+    let device = service
+        .devices
+        .list()
+        .into_iter()
+        .find(|d| d.device_id == device_id)
+        .map(|d| d.device_name)
+        .unwrap_or_else(|| "iPhone".to_string());
+    format!("iPhone에서 받는 중: {device} ({document_id})")
 }
 
 fn parse_document_id(raw: &str) -> Result<Uuid, ApiError> {
@@ -256,6 +281,9 @@ async fn put_file(
     if declared.is_some_and(|len| len > MAX_FILE_BYTES) {
         return Err(ApiError::too_large());
     }
+    let _request = service
+        .uploads
+        .begin(id, || upload_label(&service, &signed.device_id, id));
 
     let store = service.store.clone();
     let part = blocking(move || store.new_part_path(id)).await??;
@@ -322,6 +350,9 @@ async fn put_manifest(State(service): Shared, Path(id): Path<String>, request: R
     if manifest.id != id {
         return Err(ApiError::bad_request("manifest id가 경로의 문서 id와 다르다"));
     }
+    let _request = service
+        .uploads
+        .begin(id, || upload_label(&service, &signed.device_id, id));
 
     let store = service.store.clone();
     let outcome = blocking(move || {
@@ -329,6 +360,7 @@ async fn put_manifest(State(service): Shared, Path(id): Path<String>, request: R
         store.import(&manifest, &staging, ImportMode::Move)
     })
     .await??;
+    service.uploads.finish(id);
     eprintln!("문서 받음 (Wi-Fi): {} (새 원본 {}개)", outcome.document_id, outcome.added_raw.len());
     service.events.library_changed(outcome.document_id);
     Ok(Json(json!({

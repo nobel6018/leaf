@@ -60,6 +60,8 @@ fn synthetic_raw(rel: &str) -> Vec<u8> {
 }
 
 async fn start() -> Harness {
+    // 앱 안 업데이트 플러그인이 reqwest를 rustls 공급자 없이 켜 둬서, 테스트 클라이언트도 공급자를 직접 고른다
+    let _ = rustls::crypto::ring::default_provider().install_default();
     let data = tempfile::tempdir().unwrap();
     let store = Arc::new(Store::new(data.path()));
     let devices = Arc::new(Devices::load(
@@ -73,6 +75,7 @@ async fn start() -> Harness {
         pairing: Arc::new(Pairing::default()),
         mac_name: "테스트 Mac".to_string(),
         events: events.clone(),
+        uploads: Default::default(),
     });
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
@@ -155,10 +158,23 @@ impl Harness {
     }
 }
 
+/// 테스트들이 한 프로세스의 busy 등록부를 같이 쓰므로 문서 id로 가려 본다
+fn busy_for(id: Uuid) -> bool {
+    leaf_lib::busy::current().iter().any(|t| t.contains(&id.to_string()))
+}
+
 #[tokio::test]
 async fn info는_인증_없이_맥_이름을_돌려준다() {
     let h = start().await;
-    let body: Value = reqwest::get(format!("{}/v1/info", h.base)).await.unwrap().json().await.unwrap();
+    let body: Value = h
+        .client
+        .get(format!("{}/v1/info", h.base))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
     assert_eq!(body["name"], "테스트 Mac");
     assert!(body["version"].is_string());
 }
@@ -215,12 +231,16 @@ async fn 코드를_다섯_번_틀리면_맞는_코드도_거부한다() {
 async fn 원본과_manifest를_보내면_보관함에_문서가_생긴다() {
     let h = start().await;
     let device = h.pair().await;
-    let manifest = fixture_manifest();
+    // busy 등록부는 다른 테스트와 같이 쓰므로 이 테스트만의 문서 id를 쓴다
+    let mut manifest = fixture_manifest();
+    manifest.id = Uuid::new_v4();
 
     for page in &manifest.pages {
         let response = h.upload(&device, manifest.id, &page.raw).await;
         assert_eq!(response.status(), StatusCode::OK);
     }
+    // 원본 사이에도 앱 안 업데이트가 끼어들지 않게 문서 단위로 busy에 올라 있다
+    assert!(busy_for(manifest.id));
     let status = h.status(&device, manifest.id).await;
     for page in &manifest.pages {
         assert_eq!(status["files"][&page.raw], sha256_hex(&synthetic_raw(&page.raw)));
@@ -231,6 +251,7 @@ async fn 원본과_manifest를_보내면_보관함에_문서가_생긴다() {
     let body: Value = response.json().await.unwrap();
     assert_eq!(body["created"], true);
 
+    assert!(!busy_for(manifest.id));
     let doc = h.library_doc(manifest.id);
     assert_eq!(Manifest::load(&doc).unwrap(), manifest);
     for page in &manifest.pages {
