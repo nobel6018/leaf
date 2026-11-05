@@ -25,7 +25,9 @@
       "assetProtocol": {
         "enable": true,
         "scope": [
-          "$APPDATA/library/**"
+          "$APPDATA/library/**",
+          "$APPCACHE/thumbs/**",
+          "$APPCACHE/previews/**"
         ]
       }
     }

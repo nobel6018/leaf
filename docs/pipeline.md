@@ -1,0 +1,81 @@
+# 처리 파이프라인 (Mac)
+
+받은 원본(`raw/`)을 보정한 페이지(`pages/`), OCR(`ocr/`), `processing.json`으로 만듭니다. 원본은 지우지 않습니다.
+
+코드: `src-tauri/src/pipeline/`
+
+| 파일 | 하는 일 |
+|---|---|
+| `mod.rs` | `process_document`: 문서 하나 처리, 바뀐 페이지만 다시. `stale_pages`: 다시 처리할 페이지 수 |
+| `steps.rs` | 페이지 보정 단계(`correct_page`). 단계마다 함수 하나 |
+| `worker.rs` | 작업 줄(`Pipeline`). 작업 스레드 하나, 이벤트, busy 등록 |
+| `platform/macos.rs` | ImageIO로 HEIC, JPEG 읽기(EXIF 회전 적용), Vision 문서 영역 감지, RGB와 CGImage 변환 |
+| `e2e_tests.rs` | 합성 HEIC로 처음부터 PDF 텍스트까지 확인 |
+
+## 페이지 하나의 흐름
+
+1. 원본 읽기: `CGImageSourceCreateThumbnailAtIndex`에 크기 제한 없이 `CreateThumbnailWithTransform`을 줘서 EXIF 회전을 적용합니다. image 크레이트는 HEIC를 못 읽습니다
+2. 꼭짓점: `Edits::apply(manifest)` 값(손으로 고친 값, 없으면 iPhone 감지값). 둘 다 없으면 원본 해상도에서 `VNDetectDocumentSegmentationRequest`로 다시 찾고, 못 찾으면 사진 전체를 씁니다. Mac이 찾은 꼭짓점은 캐시 상태 파일에 두고 화면에 "Mac 감지"로 보입니다
+3. 보정 단계(`steps.rs`): 원근 보정 → 두 페이지 분리 → 곡면 보정 → 손가락 지우기 → 필기 지우기 → 조명과 필터
+4. `pages/<출력 id>.jpg`(품질 90, 긴 변 최대 4000픽셀)와 캐시 썸네일(너비 360)
+5. OCR(`docs/ocr.md`) → `ocr/<출력 id>.json`. 실패해도 페이지는 남기고 `ocr`을 비웁니다
+6. 페이지마다 `processing.json`을 저장해, 중간에 앱이 꺼져도 끝낸 페이지는 남습니다
+
+원근 보정은 `crates/leaf-vision/src/perspective.rs`(호모그래피 + 쌍삼차 보간, 출력 크기는 마주 보는 변 중 긴 쪽)입니다. Core Image를 쓰지 않아 Windows에서도 같은 결과가 나옵니다.
+
+## 단계 연결 자리 (vision 팀)
+
+`steps.rs`의 아래 함수 본문만 바꾸면 됩니다. 입력과 출력은 `image::RgbImage`입니다.
+
+| 함수 | 지금 | 연결할 것 |
+|---|---|---|
+| `perspective_step(image, quad)` | leaf-vision 원근 보정 | 그대로 |
+| `split_step(image, layout)` | 가운데에서 자르는 자리표시 | 접힌 선 찾기 |
+| `dewarp_step(image, Dewarp)` | 그대로 돌려줌 | UVDoc 계열 ONNX |
+| `remove_fingers_step(image)` | 그대로 돌려줌 | 손 검출 + 인페인팅 |
+| `remove_handwriting_step(image)` | 그대로 돌려줌 | 필기 분할 + 인페인팅 |
+| `filter_step(image, Filter)` | 그대로 돌려줌 | 조명 보정, 회색, 흑백 |
+
+순서를 원근 보정 다음에 분리로 둔 이유: iPhone이 찍는 꼭짓점은 펼친 책 전체의 바깥 테두리라, 먼저 펴야 접힌 선이 세로 직선에 가까워집니다. 필터를 맨 끝에 둔 이유: 흑백으로 바꾼 뒤 인페인팅하면 지운 자국이 도드라집니다. 순서를 바꾸려면 `correct_page`만 고칩니다.
+
+## 다시 처리 판단
+
+페이지마다 입력 지문(원본 파일 크기와 수정 시각, 꼭짓점, 배치, 옵션, `PIPELINE_VERSION`)을 SHA-256으로 만들어 캐시(`<앱 캐시>/state/<문서 id>.json`)에 둡니다. 아래 중 하나면 다시 처리합니다.
+
+- 출력이 없거나, `pipelineVersion`이 낮거나, 옵션이 문서 기본값과 다름
+- 지문이 다름(꼭짓점을 고쳤거나 iPhone이 원본을 바꿔 보냄)
+
+지운 페이지의 출력 파일은 정리하고, 펼침과 낱장을 바꿔 출력 id가 달라지면 옛 파일을 지웁니다.
+
+계약 요청: 지문은 `processing.json`의 `OutputPage`에 `inputFingerprint`로 두는 편이 맞습니다. 지금은 계약을 바꾸지 않으려고 Mac 캐시에 둡니다. 캐시를 지우면 한 번 모두 다시 처리할 뿐 결과는 같습니다.
+
+## 작업 줄
+
+- 문서를 하나씩 처리하는 스레드 하나(4800만 화소 사진 한 장이 수백 MB). 같은 문서가 처리 중에 다시 들어오면 끝난 뒤 한 번 더 돕니다
+- 앱을 켤 때 다시 처리할 문서를 모두 줄에 세우고, 전송이 `library-changed`를 보내면 그 문서를 줄에 세웁니다
+- 처리 중에는 `busy::start("처리: 문서 이름")`으로 등록해 앱 안 업데이트가 끊지 않게 합니다
+- 화면 이벤트: `processing-progress { documentId, done, total, stage }`, `document-processed { documentId, error }`
+- 화면이 옵션을 바꾸는 저장과 작업의 `processing.json` 저장은 같은 잠금(`io_lock`)을 씁니다
+
+## 명령
+
+| 명령 | 설명 |
+|---|---|
+| `list_documents` | 보관함. 이름, 종류, 세션은 edits 적용 값. 처리 상태와 표지 썸네일 |
+| `get_document(documentId)` | 페이지, 출력, 꼭짓점과 그 출처, 옵션, edits |
+| `save_edits(documentId, edits)` | edits.json 전체 저장 후 다시 처리 줄에 세움 |
+| `set_processing_options(documentId, options)` | processing.json 기본 옵션 |
+| `reprocess_document(documentId, force)` | `force`면 지문이 같아도 모두 |
+| `raw_preview(documentId, pageId)` | 꼭짓점 편집기용 원본 미리보기 경로(회전 적용, 긴 변 2000) |
+| `get_ocr`, `get_summary`, `save_summary_field` | 화면 표시와 AI 정리 손 편집(`editedFields`에 키를 더함) |
+| `processing_states` | 작업 줄 상태 |
+
+## 앱 띄워 보기
+
+합성 문서를 보관함에 만들고 앱을 켭니다.
+
+```sh
+LEAF_SAMPLE_LIBRARY="$HOME/Library/Application Support/com.nobel6018.leaf/library" \
+  cargo test -p leaf -- --ignored 합성_예시
+pnpm tauri dev
+```
