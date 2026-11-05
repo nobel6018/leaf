@@ -23,5 +23,5 @@ pub use cli::{LlmConfig, Provider};
 pub use docx::{DocxOptions, export_docx};
 pub use error::AiError;
 pub use naming::{NameSuggestion, suggest_document_name};
-pub use notion::{NotionCsvReport, export_notion_csv};
+pub use notion::{NotionCsvReport, export_notion_csv, export_notion_csv_with_files};
 pub use summarize::summarize_pamphlet;

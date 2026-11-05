@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { api } from "../api";
 import type { PamphletSummary, Relevance } from "../types";
 
@@ -52,6 +53,16 @@ export function AiPanel({ documentId, ready, onRename, onError }: Props) {
   }, [documentId, onError]);
 
   useEffect(load, [load]);
+
+  // 처리 직후 자동 정리(팜플렛)가 끝나면 다시 읽는다(src-tauri/src/ai.rs summarize_if_pamphlet)
+  useEffect(() => {
+    const unlisten = listen<{ documentId: string }>("summary-changed", (e) => {
+      if (e.payload.documentId === documentId) load();
+    });
+    return () => {
+      unlisten.then((f) => f());
+    };
+  }, [documentId, load]);
 
   const saveField = async (field: string, value: unknown) => {
     try {

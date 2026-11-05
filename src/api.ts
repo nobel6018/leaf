@@ -62,15 +62,17 @@ export const api = {
   summarizePamphlet: (documentId: string) => invokeOptional<PamphletSummary>("summarize_pamphlet", { documentId }),
   suggestDocumentName: (documentId: string) =>
     invokeOptional<{ name: string } | string | null>("suggest_document_name", { documentId }),
-  exportNotionCsv: (session: string) => invokeOptional<unknown>("export_notion_csv", { session }),
+  exportNotionCsv: (session: string) =>
+    invokeOptional<{ folder: string; csv: string; rows: number; pdfs: number; skipped: string[] }>("export_notion_csv", { session }),
   exportDocx: (documentId: string) => invokeOptional<unknown>("export_docx", { documentId }),
   exportAiBundle: (documentId: string) => invokeOptional<unknown>("export_ai_bundle", { documentId }),
 };
 
+// 선택 목록 순서. 스캔이 중심이라 일반 문서가 먼저, 팜플렛(AI 정리 대상)은 마지막
 export const KIND_LABEL: Record<string, string> = {
-  pamphlet: "팜플렛",
-  book: "책",
   document: "문서",
+  book: "책",
+  pamphlet: "팜플렛",
 };
 
 /** 화면 강조와 검색이 같은 규칙: 공백 빼고 소문자 (src-tauri/src/search.rs compact) */

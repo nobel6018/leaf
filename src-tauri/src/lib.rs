@@ -2,10 +2,13 @@
 //!
 //! @see docs/architecture.md
 
+mod ai;
 pub mod busy;
+mod download;
 mod export;
 pub mod inbox;
 mod library;
+mod models;
 mod ocr;
 mod pipeline;
 mod search;
@@ -82,6 +85,14 @@ pub fn run() {
             export::reveal_export,
             export::share_export,
             export::save_export_as,
+            ai::summarize_pamphlet,
+            ai::suggest_document_name,
+            ai::export_docx,
+            ai::export_ai_bundle,
+            ai::export_notion_csv,
+            models::models_status,
+            models::install_models,
+            models::cancel_model_install,
         ])
         .run(tauri::generate_context!())
         .expect("leaf 앱을 시작하지 못했다");

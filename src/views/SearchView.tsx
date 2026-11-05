@@ -7,7 +7,7 @@ interface Props {
   onError: (e: string) => void;
 }
 
-/** 본문(OCR)은 부분 문자열, 문서 이름과 세션은 초성(ㅂㅅㅎ)까지 찾는다 */
+/** 본문(OCR)은 부분 문자열, 문서 이름과 묶음은 초성(ㅂㅅㅎ)까지 찾는다 */
 export function SearchView({ onOpen, onError }: Props) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<DocumentHits[] | null>(null);

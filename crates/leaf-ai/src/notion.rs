@@ -16,7 +16,7 @@ use crate::error::AiError;
 use crate::fsutil::write_atomic;
 
 /// 노션 속성 이름이자 열 순서. 바꾸면 사용자가 만든 노션 데이터베이스와 어긋난다
-pub const NOTION_COLUMNS: [&str; 11] = [
+pub const NOTION_COLUMNS: [&str; 12] = [
     "회사명",
     "국가",
     "박람회명",
@@ -26,6 +26,8 @@ pub const NOTION_COLUMNS: [&str; 11] = [
     "타깃 시장/고객",
     "레퍼런스",
     "우리 회사와의 관련성",
+    // 분류만으로는 나중에 조사할 때 거를 수 없어 판단 이유를 따로 둔다(2026-11-05 사용자 결정)
+    "관련성 근거",
     "연락처",
     "원본 파일명",
 ];
@@ -62,11 +64,26 @@ pub fn export_notion_csv(
     document_dirs: &[PathBuf],
     out_path: &Path,
 ) -> Result<NotionCsvReport, AiError> {
+    export_notion_csv_with_files(document_dirs, out_path, &|_| None)
+}
+
+/// source_file: 문서 폴더마다 "원본 파일명" 칸에 넣을 값. 앱은 함께 내보낸 PDF 이름을 준다.
+/// None이면 summary.json의 값(문서 이름)을 쓴다
+pub fn export_notion_csv_with_files(
+    document_dirs: &[PathBuf],
+    out_path: &Path,
+    source_file: &dyn Fn(&Path) -> Option<String>,
+) -> Result<NotionCsvReport, AiError> {
     let mut summaries = Vec::new();
     let mut skipped = Vec::new();
     for dir in document_dirs {
         match read_json_optional::<PamphletSummary>(&dir.join(SUMMARY_FILE)) {
-            Ok(Some(summary)) => summaries.push(summary),
+            Ok(Some(mut summary)) => {
+                if let Some(file) = source_file(dir) {
+                    summary.source_file = file;
+                }
+                summaries.push(summary)
+            }
             Ok(None) => skipped.push(SkippedDocument {
                 dir: dir.clone(),
                 reason: "AI 정리(summary.json)가 없다".into(),
@@ -100,7 +117,7 @@ pub fn notion_csv_bytes(summaries: &[PamphletSummary]) -> Result<Vec<u8>, AiErro
         .map_err(|e| AiError::Csv(csv::Error::from(e.into_error())))
 }
 
-fn row(summary: &PamphletSummary) -> [String; 11] {
+fn row(summary: &PamphletSummary) -> [String; 12] {
     let relevance = summary
         .relevance
         .iter()
@@ -117,6 +134,7 @@ fn row(summary: &PamphletSummary) -> [String; 11] {
         &summary.target_market,
         &summary.references,
         &relevance,
+        &summary.relevance_note,
         &summary.contact,
         &summary.source_file,
     ]

@@ -133,6 +133,7 @@ fn 합성_문서를_처리하고_검색과_pdf_텍스트까지_나온다() {
         cache: cache.path(),
         io_lock: &io_lock,
         force: false,
+        models: &leaf_vision::Models::none(),
         on_progress: &on_progress,
     };
     let processing: Processing = process_document(&ctx).unwrap();

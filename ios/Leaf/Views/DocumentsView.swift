@@ -15,7 +15,7 @@ struct DocumentsView: View {
                 Text(notice).foregroundStyle(.secondary)
             }
             ForEach(sessions, id: \.self) { session in
-                Section(session.isEmpty ? "세션 없음" : session) {
+                Section(session.isEmpty ? "묶지 않은 문서" : session) {
                     ForEach(app.documents.filter { ($0.session ?? "") == session }) { manifest in
                         NavigationLink(value: manifest.id) {
                             DocumentRow(manifest: manifest, status: app.status(of: manifest))

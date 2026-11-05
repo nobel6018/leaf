@@ -120,6 +120,8 @@ impl Pipeline {
                     }
                     if result.is_ok() {
                         crate::search::refresh_document(&app, &document_id);
+                        // 팜플렛만 처리 직후 AI 정리. 책과 일반 문서는 사람이 누를 때만(docs/ai.md)
+                        crate::ai::summarize_if_pamphlet(&app, &document_id);
                     }
                     let _ = app.emit(
                         "document-processed",
@@ -146,11 +148,13 @@ impl Pipeline {
             }
             let _ = app.emit("processing-progress", progress);
         };
+        let models = crate::models::load(app);
         let ctx = ProcessContext {
             dir: &dir,
             cache: &cache,
             io_lock: &self.inner.io_lock,
             force,
+            models: &models,
             on_progress: &on_progress,
         };
         process_document(&ctx).map(|_| ())

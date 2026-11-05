@@ -10,7 +10,9 @@ struct NewDocumentView: View {
 
     let onStart: (Manifest, PageLayout) -> Void
 
-    @State private var kind: DocumentKind = .pamphlet
+    /// 마지막에 고른 종류를 기억한다. 책 한 권이나 박람회 팜플렛 묶음을 찍는 동안 매번 고르지 않게
+    @AppStorage("lastDocumentKind") private var lastKind: String = DocumentKind.document.rawValue
+    @State private var kind: DocumentKind = .document
     @State private var session = ""
     @State private var name = ""
     /// 이름을 직접 고쳤으면 세션을 바꿔도 덮어쓰지 않는다
@@ -23,9 +25,9 @@ struct NewDocumentView: View {
             Form {
                 Section("종류") {
                     Picker("종류", selection: $kind) {
-                        Text("팜플렛").tag(DocumentKind.pamphlet)
-                        Text("책").tag(DocumentKind.book)
                         Text("문서").tag(DocumentKind.document)
+                        Text("책").tag(DocumentKind.book)
+                        Text("팜플렛").tag(DocumentKind.pamphlet)
                     }
                     .pickerStyle(.segmented)
                     .accessibilityIdentifier("kindPicker")
@@ -34,12 +36,12 @@ struct NewDocumentView: View {
                     }
                 }
                 Section {
-                    TextField("예: 2026 데이터센터코리아", text: $session)
+                    TextField("예: 2026 데이터센터코리아, 사피엔스", text: $session)
                         .accessibilityIdentifier("sessionField")
                 } header: {
-                    Text("세션(박람회명)")
+                    Text("묶음")
                 } footer: {
-                    Text("바꾸기 전까지 다음 문서에도 붙습니다.")
+                    Text("여러 문서를 함께 모아 볼 이름입니다. 박람회명이나 책 시리즈처럼 쓰고, 바꾸기 전까지 다음 문서에도 붙습니다.")
                 }
                 Section {
                     TextField("문서 이름", text: $name)
@@ -69,6 +71,7 @@ struct NewDocumentView: View {
                 }
             }
             .onAppear {
+                kind = DocumentKind(rawValue: lastKind) ?? .document
                 session = app.settings.lastSession
                 name = app.defaultName(session: session)
                 nameEdited = false
@@ -81,6 +84,7 @@ struct NewDocumentView: View {
 
     private func start() {
         do {
+            lastKind = kind.rawValue
             let manifest = try app.createDocument(name: name, kind: kind, session: session)
             onStart(manifest, kind == .book && spread ? .spread : .single)
         } catch {

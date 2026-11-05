@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { api, fileUrl, KIND_LABEL } from "../api";
 import type { DocumentState, DocumentSummary, Progress } from "../types";
 
-const NO_SESSION = "세션 없음";
+const NO_SESSION = "묶지 않은 문서";
 
 export function stateLabel(state: DocumentState, progress?: Progress): { text: string; tone: string } {
   if (progress && progress.stage !== "done") {
@@ -51,6 +51,8 @@ export function LibraryView({ documents, progress, onOpen, onError }: Props) {
     try {
       const result = await api.exportNotionCsv(session);
       if (result === null) onError("노션 CSV 내보내기는 아직 연결되지 않았습니다");
+      // CSV와 PDF가 든 폴더는 Finder에 열린다. 빠진 문서만 알린다
+      else if (result.skipped.length > 0) onError(`CSV에서 빠진 문서가 있습니다: ${result.skipped.join(" / ")}`);
     } catch (e) {
       onError(String(e));
     } finally {

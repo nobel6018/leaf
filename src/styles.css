@@ -187,3 +187,6 @@ mark { background: #ffe58a; border-radius: 2px; }
 @media (max-width: 640px) {
   input, select, textarea { font-size: 16px !important; }
 }
+/* 보정 모델 (src/views/ModelsPanel.tsx) */
+.model-list { list-style: none; padding: 0; margin: 8px 0; }
+.model-list li { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; }

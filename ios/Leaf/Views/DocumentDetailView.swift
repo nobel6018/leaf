@@ -29,12 +29,12 @@ struct DocumentDetailView: View {
             Section("정보") {
                 TextField("이름", text: $name)
                     .onSubmit { save(manifest) }
-                TextField("세션(박람회명)", text: $session)
+                TextField("묶음", text: $session)
                     .onSubmit { save(manifest) }
                 Picker("종류", selection: $kind) {
-                    Text("팜플렛").tag(DocumentKind.pamphlet)
-                    Text("책").tag(DocumentKind.book)
                     Text("문서").tag(DocumentKind.document)
+                    Text("책").tag(DocumentKind.book)
+                    Text("팜플렛").tag(DocumentKind.pamphlet)
                 }
                 .onChange(of: kind) { save(manifest) }
             }

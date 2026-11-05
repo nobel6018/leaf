@@ -1,13 +1,16 @@
-//! 페이지 보정 단계. 단계마다 함수 하나이고, 아직 없는 단계는 입력을 그대로 돌려준다.
-//! vision 팀 작업(leaf-vision)이 들어오면 이 파일의 함수 본문만 바꾼다.
+//! 페이지 보정 단계. 단계마다 함수 하나이고 실제 처리는 leaf-vision이 한다.
 //!
-//! 순서: 원근 보정 → 두 페이지 분리 → 곡면 보정 → 손가락 지우기 → 필기 지우기 → 조명과 필터
+//! 순서: 원근 보정 → 손가락 지우기 → 두 페이지 분리 → 곡면 보정 → 필기 지우기 → 조명과 필터
+//! 손가락은 곡면 보정 전에 지운다. 손가락은 펼친 책의 바깥 가장자리에서 들어오므로 원근만 편 사진에서 찾기 쉽고,
+//! 곡면 보정이 손 모양을 늘리기 전이라 지울 면적도 작다(leaf-vision process_source와 같은 순서, docs/vision.md).
+//! 모델이 없으면 곡면 보정은 건너뛰고 인페인팅은 종이 색 채우기로 바뀐다(docs/models.md)
 //!
 //! @see docs/pipeline.md
 
 use image::RgbImage;
 use leaf_core::processing::{Dewarp, Filter, PagePart, ProcessOptions};
 use leaf_core::{PageLayout, Quad};
+use leaf_vision::Models;
 use leaf_vision::perspective::{self, Corners, Interpolation};
 
 /// 출력 페이지 긴 변 상한. A4를 약 340dpi로 담는 크기다. 4800만 화소 원본을 그대로 두면 PDF가 너무 커지고 OCR도 느려진다
@@ -21,17 +24,19 @@ pub struct CorrectInput<'a> {
     pub quad: Option<Quad>,
     pub layout: PageLayout,
     pub options: &'a ProcessOptions,
+    pub models: &'a Models,
 }
 
 /// 원본 한 장을 출력 페이지 한 장 또는 두 장으로 만든다
 pub fn correct_page(input: CorrectInput<'_>) -> Result<Vec<(PagePart, RgbImage)>, String> {
+    let models = input.models;
     let flat = perspective_step(input.image, input.quad)?;
+    let flat = if input.options.remove_fingers { remove_fingers_step(flat, models)? } else { flat };
     let mut outputs = Vec::new();
     for (part, image) in split_step(flat, input.layout) {
-        let image = dewarp_step(image, input.options.dewarp);
-        let image = if input.options.remove_fingers { remove_fingers_step(image) } else { image };
+        let image = dewarp_step(image, input.options.dewarp, models)?;
         let image = if input.options.remove_handwriting {
-            remove_handwriting_step(image)
+            remove_handwriting_step(image, models)?
         } else {
             image
         };
@@ -53,40 +58,38 @@ pub fn perspective_step(image: RgbImage, quad: Option<Quad>) -> Result<RgbImage,
     perspective::warp_to_size(&image, &corners, w, h, Interpolation::Bicubic).map_err(|e| e.to_string())
 }
 
-/// 2단계: 펼친 책을 왼쪽, 오른쪽으로 나눈다.
-/// 자리표시: 가운데에서 자른다. vision 팀의 접힌 선 찾기(leaf-vision)로 바꿀 곳
+/// 3단계: 펼친 책을 접힌 선에서 왼쪽, 오른쪽으로 나눈다. 접힌 선을 확신하지 못하면(한 쪽만 찍힌 경우) 나누지 않는다
 pub fn split_step(image: RgbImage, layout: PageLayout) -> Vec<(PagePart, RgbImage)> {
     match layout {
         PageLayout::Single => vec![(PagePart::Whole, image)],
-        PageLayout::Spread => {
-            let half = image.width() / 2;
-            let left = image::imageops::crop_imm(&image, 0, 0, half, image.height()).to_image();
-            let right = image::imageops::crop_imm(&image, half, 0, image.width() - half, image.height()).to_image();
-            vec![(PagePart::Left, left), (PagePart::Right, right)]
-        }
+        PageLayout::Spread => match leaf_vision::split_spread(&image) {
+            leaf_vision::Split::Spread { left, right, .. } => vec![(PagePart::Left, left), (PagePart::Right, right)],
+            leaf_vision::Split::Single { .. } => vec![(PagePart::Whole, image)],
+        },
     }
 }
 
-/// 3단계: 곡면 보정. 자리표시(그대로). vision 팀의 UVDoc 계열 모델로 바꿀 곳
-pub fn dewarp_step(image: RgbImage, mode: Dewarp) -> RgbImage {
-    let _ = mode;
-    image
+/// 4단계: 곡면 보정. 모델이 없으면 그대로
+pub fn dewarp_step(image: RgbImage, mode: Dewarp, models: &Models) -> Result<RgbImage, String> {
+    if mode == Dewarp::Off {
+        return Ok(image);
+    }
+    leaf_vision::dewarp(&image, mode, models).map(|r| r.image).map_err(|e| e.to_string())
 }
 
-/// 4단계: 손가락 지우기. 자리표시(그대로). vision 팀의 손 검출 + 인페인팅으로 바꿀 곳
-pub fn remove_fingers_step(image: RgbImage) -> RgbImage {
-    image
+/// 2단계: 손가락 지우기
+pub fn remove_fingers_step(image: RgbImage, models: &Models) -> Result<RgbImage, String> {
+    leaf_vision::remove_fingers(&image, None, models).map(|(out, _)| out).map_err(|e| e.to_string())
 }
 
-/// 5단계: 필기 지우기. 자리표시(그대로)
-pub fn remove_handwriting_step(image: RgbImage) -> RgbImage {
-    image
+/// 5단계: 색 펜 필기 지우기(파랑, 빨강, 초록). 연필과 검은 펜은 남는다(docs/vision.md)
+pub fn remove_handwriting_step(image: RgbImage, models: &Models) -> Result<RgbImage, String> {
+    leaf_vision::remove_handwriting(&image, models).map(|(out, _)| out).map_err(|e| e.to_string())
 }
 
-/// 6단계: 조명 보정과 필터. 자리표시(그대로). 흑백 필터가 인페인팅보다 먼저 오면 지운 자국이 도드라져 맨 끝에 둔다
+/// 6단계: 조명 보정과 필터. 흑백 필터가 인페인팅보다 먼저 오면 지운 자국이 도드라져 맨 끝에 둔다
 pub fn filter_step(image: RgbImage, filter: Filter) -> RgbImage {
-    let _ = filter;
-    image
+    leaf_vision::apply_filter(&image, filter)
 }
 
 fn is_full_frame(quad: &Quad) -> bool {
@@ -134,19 +137,36 @@ mod tests {
         }
     }
 
-    #[test]
-    fn 펼친_페이지는_왼쪽과_오른쪽_두_장이_된다() {
-        let image = RgbImage::new(101, 50);
-        let options = ProcessOptions::default();
-        let outputs = correct_page(CorrectInput {
+    fn spread_input(image: RgbImage) -> Vec<PagePart> {
+        let options = ProcessOptions { filter: Filter::Original, remove_fingers: false, ..ProcessOptions::default() };
+        correct_page(CorrectInput {
             image,
             quad: None,
             layout: PageLayout::Spread,
             options: &options,
+            models: &Models::none(),
         })
-        .unwrap();
-        let parts: Vec<_> = outputs.iter().map(|(p, i)| (*p, i.width())).collect();
-        assert_eq!(parts, vec![(PagePart::Left, 50), (PagePart::Right, 51)]);
+        .unwrap()
+        .into_iter()
+        .map(|(part, _)| part)
+        .collect()
+    }
+
+    #[test]
+    fn 접힌_선_그림자가_있으면_왼쪽과_오른쪽_두_장이_된다() {
+        // 가운데로 갈수록 어두워지는 책 접힌 선 그림자와, 양쪽 페이지의 글줄 무늬
+        let image = RgbImage::from_fn(800, 600, |x, y| {
+            let shadow = (1.0 - ((x as f32 - 400.0).abs() / 40.0)).max(0.0);
+            let line = y % 24 < 3 && (60..360).contains(&(x % 400)) && x % 400 > 40;
+            let v = if line { 60.0 } else { 245.0 - 170.0 * shadow };
+            image::Rgb([v as u8; 3])
+        });
+        assert_eq!(spread_input(image), vec![PagePart::Left, PagePart::Right]);
+    }
+
+    #[test]
+    fn 접힌_선을_못_찾으면_나누지_않는다() {
+        assert_eq!(spread_input(RgbImage::from_pixel(400, 300, image::Rgb([240; 3]))), vec![PagePart::Whole]);
     }
 
     #[test]

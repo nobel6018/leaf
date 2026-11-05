@@ -5,13 +5,14 @@ import { api } from "../api";
 import type { InboxStatus, PairingCode, TransferStatus } from "../types";
 import { UpdateAction, UpdateNotes, updateMessage } from "../update/UpdateBanner";
 import type { useAppUpdate } from "../update/useAppUpdate";
+import { ModelsPanel } from "./ModelsPanel";
 
 interface Props {
   update: ReturnType<typeof useAppUpdate>;
   onError: (e: string) => void;
 }
 
-/** iPhone 연결(짝짓기), 연결된 기기, iCloud 받은 편지함, 앱 버전. @see docs/transfer.md */
+/** iPhone 연결(짝짓기), 연결된 기기, iCloud 받은 편지함, 보정 모델, 앱 버전. @see docs/transfer.md */
 export function SettingsView({ update, onError }: Props) {
   const [status, setStatus] = useState<TransferStatus | null | undefined>(undefined);
   const [inbox, setInbox] = useState<InboxStatus | null | undefined>(undefined);
@@ -145,6 +146,8 @@ export function SettingsView({ update, onError }: Props) {
           </>
         )}
       </section>
+
+      <ModelsPanel onError={onError} />
 
       <section className="panel">
         <h3>앱 버전</h3>

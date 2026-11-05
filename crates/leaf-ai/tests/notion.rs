@@ -68,7 +68,8 @@ fn bom과_crlf가_붙고_csv_리더로_다시_읽으면_값이_같다() {
     assert_eq!(&rows[0][4], "랙 운반 로봇, \"AMR\" 시리즈");
     assert_eq!(&rows[0][5], "하중 800 kg\n속도 1.2 m/s");
     assert_eq!(&rows[0][8], "경쟁사, 협력 후보");
-    assert_eq!(&rows[0][10], "2026 예시박람회_가나 로보틱스");
+    assert_eq!(&rows[0][9], "같은 시장");
+    assert_eq!(&rows[0][11], "2026 예시박람회_가나 로보틱스");
 }
 
 #[test]
@@ -119,4 +120,23 @@ fn 세션이_같은_문서를_촬영_순서로_찾고_맥에서_고친_세션을
     expected.sort();
     assert_eq!(found, expected);
     assert!(!session_document_dirs(root.path(), "박람회 A").contains(&b.dir));
+}
+
+#[test]
+fn 관련성_근거_열이_있고_원본_파일명은_앱이_준_pdf_이름이다() {
+    let root = tempfile::tempdir().unwrap();
+    let a = make_document(root.path(), "a", Some("2026 예시박람회"), vec![]);
+    write_summary(&a.dir, &summary("가나 로보틱스"));
+    let out = root.path().join("notion.csv");
+
+    leaf_ai::export_notion_csv_with_files(std::slice::from_ref(&a.dir), &out, &|_| Some("2026 예시박람회_가나 로보틱스.pdf".into())).unwrap();
+
+    let bytes = fs::read(&out).unwrap();
+    let mut reader = csv::Reader::from_reader(&bytes[3..]);
+    let headers = reader.headers().unwrap().clone();
+    let row = reader.records().next().unwrap().unwrap();
+    let column = |name: &str| headers.iter().position(|h| h == name).unwrap();
+    assert_eq!(column("관련성 근거"), column("우리 회사와의 관련성") + 1);
+    assert_eq!(&row[column("관련성 근거")], "같은 시장");
+    assert_eq!(&row[column("원본 파일명")], "2026 예시박람회_가나 로보틱스.pdf");
 }

@@ -159,6 +159,7 @@ pub struct ProcessContext<'a> {
     /// 문서 단위로 processing.json 읽고 쓰기를 묶는다(화면의 옵션 저장과 겹치지 않게)
     pub io_lock: &'a std::sync::Mutex<()>,
     pub force: bool,
+    pub models: &'a leaf_vision::Models,
     pub on_progress: &'a dyn Fn(Progress),
 }
 
@@ -209,6 +210,7 @@ pub fn process_document(ctx: &ProcessContext<'_>) -> Result<Processing, String> 
             quad,
             layout: page.layout,
             options: &options,
+            models: ctx.models,
         })?;
         let mut page_outputs = Vec::new();
         for (part, image) in parts {

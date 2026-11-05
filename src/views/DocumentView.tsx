@@ -211,8 +211,8 @@ export function DocumentView({ documentId, initialOutputId, initialQuery, revisi
         </select>
         <input
           className="session-input"
-          aria-label="세션"
-          placeholder="세션(박람회명)"
+          aria-label="묶음"
+          placeholder="묶음 (예: 박람회명, 책 시리즈)"
           value={sessionDraft ?? summary.session ?? ""}
           onChange={(e) => setSessionDraft(e.target.value)}
           onBlur={commitSession}
