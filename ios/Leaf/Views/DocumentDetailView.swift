@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 문서 하나: 이름, 종류, 세션 고치기, 찍은 장 보기와 지우기, 이어서 찍기, 보내기.
+// 문서 하나: 이름, 종류, 묶음 고치기, 찍은 장 보기와 지우기, 이어서 찍기, 보내기.
 // @see docs/ios.md
 
 struct DocumentDetailView: View {
@@ -12,7 +12,7 @@ struct DocumentDetailView: View {
 
     @State private var name = ""
     @State private var session = ""
-    @State private var kind: DocumentKind = .pamphlet
+    @State private var kind: DocumentKind = .document
     @State private var confirmDelete = false
     @State private var failure: String?
 
@@ -32,9 +32,9 @@ struct DocumentDetailView: View {
                 TextField("묶음", text: $session)
                     .onSubmit { save(manifest) }
                 Picker("종류", selection: $kind) {
-                    Text("문서").tag(DocumentKind.document)
-                    Text("책").tag(DocumentKind.book)
-                    Text("팜플렛").tag(DocumentKind.pamphlet)
+                    ForEach(DocumentKind.displayOrder, id: \.self) { value in
+                        Text(value.label).tag(value)
+                    }
                 }
                 .onChange(of: kind) { save(manifest) }
             }
@@ -64,7 +64,7 @@ struct DocumentDetailView: View {
                         PageThumbnail(url: app.store.fileURL(of: manifest.id, relativePath: page.raw), quad: page.quad)
                             .frame(height: 120)
                             .overlay(alignment: .bottomLeading) {
-                                Text(page.layout == .spread ? "\(index + 1) 두 쪽" : "\(index + 1)")
+                                Text(page.layout.badge.map { "\(index + 1) \($0)" } ?? "\(index + 1)")
                                     .font(.caption2.bold())
                                     .padding(3)
                                     .background(.thinMaterial, in: .rect(cornerRadius: 4))

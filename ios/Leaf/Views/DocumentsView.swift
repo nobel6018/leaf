@@ -8,9 +8,20 @@ struct DocumentsView: View {
     @State private var showingNew = false
     @State private var capturing: CaptureRequest?
     @State private var showingSettings = false
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         List {
+            if let update = app.updateBanner {
+                UpdateBanner(update: update) {
+                    // AltStore가 없거나 주소를 받지 않으면 Release 페이지를 연다
+                    openURL(UpdateCheck.altStoreURL) { accepted in
+                        if !accepted { openURL(update.releaseURL) }
+                    }
+                } onDismiss: {
+                    app.dismissUpdate()
+                }
+            }
             if let notice = app.notice {
                 Text(notice).foregroundStyle(.secondary)
             }
@@ -84,13 +95,44 @@ struct DocumentsView: View {
                     Task { await app.sendPending() }
                 }
         }
-        #if DEBUG
-        .task { openDebugScreen() }
-        #endif
+        // 앱이 꺼져 있다 "스캔 시작"으로 켜지면 요청이 화면보다 먼저 온다. 나타날 때 한 번, 그 뒤로는 올 때마다 가져간다
+        .task {
+            #if DEBUG
+            openDebugScreen()
+            #endif
+            startRequestedScan()
+        }
+        .onChange(of: ScanLauncher.shared.pending) { startRequestedScan() }
+    }
+
+    /// "스캔 시작" 동작. 마지막 종류, 묶음, 배치로 새 문서를 만들고 촬영 화면을 연다
+    private func startRequestedScan() {
+        guard let request = ScanLauncher.shared.take() else { return }
+        // 이미 찍는 중이면 그 화면을 그대로 둔다
+        guard capturing == nil else { return }
+        let plan = ScanStartPlan.make(requested: request.kind, settings: app.settings)
+        let sheetOpen = showingNew || showingSettings
+        showingNew = false
+        showingSettings = false
+        do {
+            let manifest = try app.createDocument(name: "", kind: plan.kind, session: plan.session)
+            let open = CaptureRequest(manifest: manifest, layout: plan.layout)
+            if sheetOpen {
+                // 시트가 내려간 뒤에 띄워야 전체 화면이 뜬다
+                Task {
+                    try? await Task.sleep(for: .milliseconds(600))
+                    capturing = open
+                }
+            } else {
+                capturing = open
+            }
+        } catch {
+            app.notice = "새 문서를 만들지 못했습니다: \(error.localizedDescription)"
+        }
     }
 
     #if DEBUG
-    /// 시뮬레이터 화면 확인용. `-leafScreen capture|new|settings` 로 켜면 그 화면을 바로 연다(docs/ios.md)
+    /// 시뮬레이터 화면 확인용. `-leafScreen capture|new|settings|scan|update` 로 켜면 그 화면을 바로 연다(docs/ios.md)
     private func openDebugScreen() {
         guard let screen = UserDefaults.standard.string(forKey: "leafScreen") else { return }
         switch screen {
@@ -100,12 +142,24 @@ struct DocumentsView: View {
             capturing = manifest.map { CaptureRequest(manifest: $0) }
         case "new": showingNew = true
         case "settings": showingSettings = true
+        case "scan":
+            // "스캔 시작" 동작과 같은 길. `-leafScanKind book` 으로 종류를 줄 수 있다
+            let kind = UserDefaults.standard.string(forKey: "leafScanKind").flatMap(DocumentKind.init(rawValue:))
+            ScanLauncher.shared.request(kind: kind)
+        case "update":
+            app.settings.availableUpdate = AvailableUpdate(
+                version: "9.9.9",
+                releaseURL: URL(string: "https://github.com/nobel6018/leaf/releases/latest")!
+            )
+            app.settings.dismissedUpdateVersion = nil
+            // 실제 확인이 가짜 알림을 덮지 않게 오늘은 확인한 것으로 둔다
+            app.settings.lastUpdateCheckAt = .now
         default: break
         }
     }
     #endif
 
-    /// 최근 문서의 세션이 위로 온다
+    /// 최근 문서의 묶음이 위로 온다
     private var sessions: [String] {
         var seen: [String] = []
         for manifest in app.documents where !seen.contains(manifest.session ?? "") {
@@ -169,13 +223,35 @@ extension LabelStyle where Self == BadgeLabelStyle {
     fileprivate static var badge: BadgeLabelStyle { BadgeLabelStyle() }
 }
 
-extension DocumentKind {
-    var label: String {
-        switch self {
-        case .pamphlet: "팜플렛"
-        case .book: "책"
-        case .document: "문서"
+/// 새 버전 알림. AltStore에서 업데이트하고, 닫으면 그 버전은 다시 알리지 않는다
+private struct UpdateBanner: View {
+    let update: AvailableUpdate
+    let onUpdate: () -> Void
+    let onDismiss: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "arrow.down.circle.fill")
+                .font(.title2)
+                .foregroundStyle(.green)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("새 버전 \(update.version)").font(.headline)
+                Text("AltStore에서 업데이트합니다").font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Button("업데이트", action: onUpdate)
+                .buttonStyle(.borderedProminent)
+                .tint(.green)
+                .frame(minHeight: 44)
+                .accessibilityIdentifier("updateButton")
+            Button("닫기", systemImage: "xmark", action: onDismiss)
+                .labelStyle(.iconOnly)
+                .buttonStyle(.borderless)
+                .foregroundStyle(.secondary)
+                .frame(minWidth: 44, minHeight: 44)
+                .accessibilityIdentifier("dismissUpdate")
         }
+        .accessibilityIdentifier("updateBanner")
     }
 }
 

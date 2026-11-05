@@ -187,4 +187,40 @@ struct AutoCaptureTests {
         #expect(fast.contains(.capture))
         #expect(!slow.contains(.capture))
     }
+
+    /// 펼친 3단 접지(A4 가로, 1.414:1)가 세로 4:3 화면에서 차지하는 테두리. 가로 폭 비율만 주면 세로는 비율로 정해진다
+    private func unfoldedSheet(widthFraction width: Double, ratio: Double = 297.0 / 210.0) -> Quad {
+        // 화면은 가로 3, 세로 4. 정규화 세로 = 폭 * 3 / 비율 / 4
+        let height = width * 3 / ratio / 4
+        let left = (1 - width) / 2
+        let top = (1 - height) / 2
+        return Quad(
+            topLeft: .init(x: left, y: top),
+            topRight: .init(x: left + width, y: top),
+            bottomRight: .init(x: left + width, y: top + height),
+            bottomLeft: .init(x: left, y: top + height)
+        )
+    }
+
+    @Test func 펼친_3단_접지는_어느_민감도에서도_문서로_보고_찍는다() {
+        // 화면 폭의 80%를 채운 가로 종이. 넓이는 약 0.34로 가장 높은 하한(둔하게 0.18)보다 크다
+        let sheet = unfoldedSheet(widthFraction: 0.8)
+        #expect(sheet.area > AutoCaptureTuning.low.minimumDocumentArea)
+
+        for sensitivity in AutoCaptureSensitivity.allCases {
+            var engine = AutoCaptureEngine(tuning: sensitivity.tuning)
+            let decisions = run(&engine, from: 0, to: 1.2) { frame($0, quad: .some(sheet)) }
+            #expect(decisions.contains(.capture), "민감도 \(sensitivity.rawValue)")
+        }
+    }
+
+    @Test func 거치대를_낮춰_폭의_60퍼센트만_채워도_찍는다() {
+        // 세로 화면에 가로 종이를 놓으면 위아래가 비어 넓이가 줄어든다. 폭 60%면 넓이 약 0.19
+        let sheet = unfoldedSheet(widthFraction: 0.6)
+        var engine = AutoCaptureEngine(tuning: .low)
+
+        let decisions = run(&engine, from: 0, to: 1.2) { frame($0, quad: .some(sheet)) }
+
+        #expect(decisions.contains(.capture))
+    }
 }

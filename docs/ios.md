@@ -14,6 +14,7 @@ xcodebuild test -project Leaf.xcodeproj -scheme Leaf \
 ```
 
 - `Leaf.xcodeproj`는 `project.yml`에서 만들어지므로 커밋하지 않습니다
+- 타깃은 앱(`Leaf`), 제어 센터 확장(`LeafControls`, 앱 안 `PlugIns/`로 들어감), 테스트(`LeafTests`)입니다. `Shared/`는 앱과 확장이 함께 컴파일합니다
 - `xcode-select -p`가 CommandLineTools이면 `DEVELOPER_DIR`를 줘야 합니다
 - 최소 iOS 18, Swift 6(엄격한 동시성 검사)
 
@@ -27,13 +28,23 @@ sori처럼 AltStore로 본인 기기에만 설치합니다. 빌드는 서명 없
 
 | 화면 | 코드 | 내용 |
 |---|---|---|
-| 문서 목록 | `Views/DocumentsView.swift` | 세션별 문서, 보낸 상태(안 보냄, 보내는 중, iCloud 대기, Mac에 있음, 바뀜, 실패), 새 문서, 모두 보내기 |
-| 새 문서 | `Views/NewDocumentView.swift` | 종류(팜플렛, 책, 문서), 세션(박람회명, 바꾸기 전까지 기억), 이름(기본 `세션_번호`). 책은 "펼친 두 페이지"가 기본으로 켜짐 |
-| 촬영 | `Views/CaptureView.swift`, `Capture/CaptureModel.swift` | 4:3 미리보기, 테두리, 자동 촬영 안내, 자동과 수동 전환, 한 장과 두 쪽 전환, 페이지 띠(누르면 다시 찍기, 지우기) |
-| 문서 | `Views/DocumentDetailView.swift` | 이름, 세션, 종류 고치기, 찍은 장, 이어서 찍기, Wi-Fi나 iCloud로 보내기, 문서 지우기 |
+| 문서 목록 | `Views/DocumentsView.swift` | 새 버전 알림, 묶음별 문서, 보낸 상태(안 보냄, 보내는 중, iCloud 대기, Mac에 있음, 바뀜, 실패), 새 문서, 모두 보내기 |
+| 새 문서 | `Views/NewDocumentView.swift` | 종류(문서, 책, 팜플렛), 묶음(박람회명, 책 시리즈 등), 이름(기본 `묶음_번호`). 책은 "펼친 두 페이지", 팜플렛은 "펼친 3단 접지" 스위치. 종류, 묶음, 종류별 배치는 바꾸기 전까지 기억 |
+| 촬영 | `Views/CaptureView.swift`, `Capture/CaptureModel.swift` | 4:3 미리보기, 테두리, 자동 촬영 안내, 자동과 수동 전환, 배치 전환(한 장, 두 쪽, 팜플렛은 3단까지), 페이지 띠(누르면 다시 찍기, 지우기) |
+| 문서 | `Views/DocumentDetailView.swift` | 이름, 묶음, 종류 고치기, 찍은 장(두 쪽, 3단 표시), 이어서 찍기, Wi-Fi나 iCloud로 보내기, 문서 지우기 |
 | 설정 | `Views/SettingsView.swift` | Mac 연결과 해제, iCloud 폴더, 원본 지우기 기간, 자동 촬영 민감도 |
 
-문서 이름 기본값은 같은 세션에서 쓴 가장 큰 번호 + 1입니다(`Library/SendRecords.swift` `DocumentNaming`). 세션이 없으면 `문서_번호`입니다. 팜플렛은 나중에 Mac AI가 표지에서 회사명을 추천합니다.
+문서 이름 기본값은 같은 묶음에서 쓴 가장 큰 번호 + 1입니다(`Library/SendRecords.swift` `DocumentNaming`). 묶음이 없으면 종류 이름을 씁니다(`문서_1`, `책_1`, `팜플렛_1`). 팜플렛은 나중에 Mac AI가 표지에서 회사명을 추천합니다.
+
+배치는 페이지마다 manifest `layout`에 들어갑니다(docs/document-format.md). 종류마다 고를 수 있는 배치는 `Library/KindLayouts.swift`에 있습니다.
+
+| 종류 | 배치 | 처음 값 |
+|---|---|---|
+| 문서 | 한 장, 두 쪽 | 한 장 |
+| 책 | 한 장, 두 쪽 | 두 쪽 |
+| 팜플렛 | 한 장, 두 쪽(반 접은 리플릿), 3단(펼친 3단 접지) | 한 장 |
+
+새 문서 화면이나 촬영 화면에서 배치를 바꾸면 그 종류의 다음 새 문서도 그 배치로 시작합니다(`AppSettings.lastLayout(for:)`). 이어 찍기는 그 문서 마지막 장의 배치를 이어 갑니다.
 
 다시 찍기를 고르면 다음 촬영이 그 장 자리에 들어가고 예전 원본은 지웁니다(`DocumentStore.addPage(replacing:)`).
 
@@ -73,6 +84,41 @@ docs/transfer.md를 따릅니다. 코드는 `ios/Leaf/Transfer/`, 흐름은 `App
 
 설정의 기간(기본 7일, 0이면 지우지 않음)이 지나고, Mac이 받은 것이 확인됐고, 보낸 뒤 바뀌지 않은 문서를 앱이 앞으로 올 때 지웁니다(`RetentionPolicy`, `AppModel.applyRetention`). Mac에는 원본이 남습니다.
 
+## 스캔 시작 동작
+
+앱을 열지 않은 상태에서 바로 새 문서 촬영으로 들어가는 동작입니다. 마지막에 고른 종류, 마지막 묶음, 그 종류의 마지막 배치로 새 문서를 만들고 촬영 화면을 엽니다. 종류를 정해 두면(`종류` 매개변수) 그 종류로 엽니다.
+
+| 코드 | 내용 |
+|---|---|
+| `Shared/StartScanIntent.swift` | `StartScanIntent`(`openAppWhenRun`), 종류 `ScanKindOption`. 앱과 확장이 함께 컴파일하고 확장에서는 `LEAF_CONTROLS` 조건으로 앱 코드 호출을 뺀다 |
+| `Leaf/Intents/LeafShortcuts.swift` | App Shortcut("leaf 스캔 시작", "leaf로 책 스캔" 등). 단축어를 만들지 않아도 목록에 보인다 |
+| `Leaf/App/ScanLauncher.swift` | 인텐트가 남긴 요청과 시작 값(`ScanStartPlan`). 앱이 꺼져 있다 켜지면 요청이 화면보다 먼저 와서, 문서 목록이 나타날 때 가져간다 |
+| `LeafControls/LeafControls.swift` | 제어 센터, 잠금 화면 컨트롤(iOS 18 `ControlWidget`) |
+
+이미 촬영 화면이 떠 있으면 요청을 버리고 그 화면을 둡니다. 새 문서나 설정 시트가 떠 있으면 내린 뒤 촬영 화면을 엽니다.
+
+무료 Apple ID 서명에서 되는 것과 안 되는 것:
+
+| 쓰는 곳 | 무료 Apple ID | 비고 |
+|---|---|---|
+| 단축어 앱, Spotlight, Siri 문구 | 됨 | App Intents는 entitlement가 필요 없다. Siri 문구는 App Shortcut이라 SiriKit 권한이 필요 없다 |
+| 동작 버튼(iPhone 15 Pro 이상) | 됨 | 설정 > 동작 버튼 > 단축어 > leaf "스캔 시작", 또는 제어 > leaf 스캔 시작 |
+| 제어 센터, 잠금 화면 컨트롤 | 될 것으로 봄(실기기 미확인) | 위젯 확장이라 entitlement는 없지만 App ID를 하나 더 쓴다. 무료 Apple ID는 7일에 App ID 10개까지라 leaf가 2개를 쓴다. 앱 그룹은 쓰지 않는다(확장은 버튼만 그리고 실행은 앱에서 한다) |
+| 앱을 열지 않고 백그라운드에서 촬영 | 안 됨 | 카메라는 앱이 앞에 있어야 한다. 그래서 늘 앱을 연다 |
+| 위젯(홈 화면) | 만들지 않음 | |
+
+확장의 버전은 앱과 같아야 설치되므로 프로젝트 설정의 `MARKETING_VERSION`을 같이 씁니다. AltStore 소스 스크립트는 `PlugIns/*.appex`의 권한 설명도 모으므로 고칠 것이 없습니다.
+
+## 업데이트 알림
+
+앱이 앞으로 올 때 하루에 한 번 GitHub `releases/latest`를 묻고, `leaf-ios.ipa`가 붙은 더 새 버전이면 문서 목록 위에 "새 버전 x.y.z"를 띄웁니다(`App/UpdateCheck.swift`, `AppModel.checkForUpdate`). sori `src/updateCheck.ts`와 같은 방식입니다.
+
+- 버전 비교는 점으로 나눈 숫자를 앞에서부터 봅니다(0.10.0 > 0.9.1). 앞의 `v`와 뒤표(`-beta.1`)는 무시합니다(`UpdateCheck.isNewer`, `UpdateCheckTests`)
+- 확인 결과는 저장해 두어 묻지 않는 날에도 알림이 남습니다. 닫으면 그 버전은 다시 알리지 않고, 더 새 버전이 나오면 다시 알립니다
+- GitHub에 묻지 못하면 기록하지 않고 다음에 앞으로 올 때 다시 묻습니다. 로그인 없이 IP당 시간당 60번까지라 하루 한 번이면 넉넉합니다
+- "업데이트"는 `altstore://source?url=<apps.json 주소>`로 AltStore의 leaf 소스를 엽니다. AltStore가 주소를 받지 않으면 Release 페이지를 엽니다. 설치는 AltStore의 Update 버튼으로 합니다(사이드로딩 앱은 스스로 설치하지 못한다)
+- 단위 테스트가 앱을 띄울 때는 묻지 않습니다
+
 ## 시뮬레이터에서 화면 보기
 
 카메라 대신 합성 화면이 나옵니다(docs/capture.md "시뮬레이터"). DEBUG 빌드는 실행 인자로 화면을 바로 엽니다.
@@ -81,13 +127,18 @@ docs/transfer.md를 따릅니다. 코드는 `ios/Leaf/Transfer/`, 흐름은 `App
 xcrun simctl launch <udid> com.nobel6018.leaf -leafScreen capture   # 촬영(세션 "2026 예시박람회" 문서를 만든다)
 xcrun simctl launch <udid> com.nobel6018.leaf -leafScreen new       # 새 문서
 xcrun simctl launch <udid> com.nobel6018.leaf -leafScreen settings  # 설정
+xcrun simctl launch <udid> com.nobel6018.leaf -leafScreen scan -leafScanKind book  # "스캔 시작" 동작과 같은 길
+xcrun simctl launch <udid> com.nobel6018.leaf -leafScreen update    # 가짜 새 버전 알림(9.9.9)
 xcrun simctl io <udid> screenshot --display=1 shot.png
 ```
 
 ## 실기기에서만 확인되는 것
 
 - 카메라 세션, 최대 해상도 HEIC, 사진 EXIF 방향과 quad가 실제 사진 위에서 맞는지
-- Vision 문서 감지, 손 감지, feature print 거리와 기준값(거치대, 실제 팜플렛과 책으로 맞춘다)
+- Vision 문서 감지, 손 감지, feature print 거리와 기준값(거치대, 실제 문서, 책, 팜플렛으로 맞춘다)
 - 볼륨 버튼과 블루투스 리모컨 셔터
 - 로컬 네트워크 권한, Bonjour 찾기, Mac 서버와의 실제 전송
 - 키체인(무료 Apple ID 서명에서), iCloud 폴더 선택과 보안 범위 북마크
+- 동작 버튼, 제어 센터, 잠금 화면 컨트롤에서 "스캔 시작"이 앱을 열고 촬영 화면으로 들어가는지. 시뮬레이터에서는 `-leafScreen scan`으로 같은 화면 흐름만 확인했다
+- `altstore://source?url=` 주소를 AltStore가 받아 leaf 소스를 여는지. 받지 않으면 Release 페이지로 간다
+- 펼친 3단 접지를 거치대에서 찍을 때 Vision 문서 감지가 가로로 긴 종이 전체를 잡는지

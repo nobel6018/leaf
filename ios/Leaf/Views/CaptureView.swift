@@ -22,7 +22,7 @@ struct CaptureView: View {
             Spacer(minLength: 8)
             PageStrip(model: model)
             controls
-                .padding(.vertical, 14)
+                .padding(.vertical, 10)
         }
         .background(Color.black.ignoresSafeArea())
         .foregroundStyle(.white)
@@ -128,6 +128,9 @@ struct CaptureView: View {
         if model.retakeTarget != nil, model.status != .capturing {
             return "다시 찍을 장을 놓아 주세요"
         }
+        if model.layout == .trifold, model.status == .noDocument || model.status == .waitingForChange {
+            return model.status == .noDocument ? "3단 접지를 펼쳐 놓아 주세요" : "다음 장을 펼쳐 놓아 주세요"
+        }
         guard model.autoEnabled else { return "수동 촬영: 셔터나 볼륨 버튼" }
         return switch model.status {
         case .noDocument: "종이를 놓아 주세요"
@@ -147,18 +150,18 @@ struct CaptureView: View {
         }
     }
 
+    /// 배치 선택은 셔터 위 한 줄에 둔다. 팜플렛은 선택지가 셋이라 셔터 옆에 두면 좁은 화면 폭을 넘는다
     private var controls: some View {
-        HStack {
+        VStack(spacing: 12) {
             Picker("배치", selection: $model.layout) {
-                Text("한 장").tag(PageLayout.single)
-                Text("두 쪽").tag(PageLayout.spread)
+                ForEach(model.layoutChoices, id: \.self) { layout in
+                    Text(layout.shortLabel).tag(layout)
+                }
             }
             .pickerStyle(.segmented)
-            .frame(width: 120)
+            .frame(width: CGFloat(model.layoutChoices.count) * 72)
             .colorScheme(.dark)
             .accessibilityIdentifier("layoutPicker")
-
-            Spacer()
 
             Button {
                 model.shutter()
@@ -171,11 +174,8 @@ struct CaptureView: View {
             .disabled(model.isSaving)
             .accessibilityLabel("셔터")
             .accessibilityIdentifier("shutter")
-
-            Spacer()
-
-            Color.clear.frame(width: 120, height: 1)
         }
+        .frame(maxWidth: .infinity)
         .padding(.horizontal)
     }
 }

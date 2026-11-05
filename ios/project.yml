@@ -15,7 +15,10 @@ targets:
   Leaf:
     type: application
     platform: iOS
-    sources: [Leaf]
+    sources: [Leaf, Shared]
+    dependencies:
+      # 제어 센터 "스캔 시작" 버튼. 앱 안의 PlugIns/로 들어간다(docs/ios.md)
+      - target: LeafControls
     info:
       path: Leaf/Info.plist
       properties:
@@ -30,6 +33,27 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.nobel6018.leaf
+  LeafControls:
+    type: app-extension
+    platform: iOS
+    sources: [LeafControls, Shared]
+    info:
+      path: LeafControls/Info.plist
+      properties:
+        CFBundleDisplayName: leaf
+        # 확장 버전은 앱과 같아야 설치된다. 프로젝트 설정의 MARKETING_VERSION을 같이 쓴다
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.nobel6018.leaf.controls
+        # StartScanIntent의 앱 코드 호출은 앱에서만 컴파일한다
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) LEAF_CONTROLS
+    dependencies:
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
   LeafTests:
     type: bundle.unit-test
     platform: iOS

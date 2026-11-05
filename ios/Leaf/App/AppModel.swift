@@ -59,8 +59,8 @@ final class AppModel {
 
     // MARK: 문서
 
-    func defaultName(session: String) -> String {
-        DocumentNaming.defaultName(session: session, existingNames: documents.map(\.name))
+    func defaultName(session: String, kind: DocumentKind) -> String {
+        DocumentNaming.defaultName(session: session, kind: kind, existingNames: documents.map(\.name))
     }
 
     func createDocument(name: String, kind: DocumentKind, session: String) throws -> Manifest {
@@ -68,7 +68,7 @@ final class AppModel {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         settings.lastSession = trimmedSession
         let manifest = try store.create(
-            name: trimmedName.isEmpty ? defaultName(session: trimmedSession) : trimmedName,
+            name: trimmedName.isEmpty ? defaultName(session: trimmedSession, kind: kind) : trimmedName,
             kind: kind,
             session: trimmedSession.isEmpty ? nil : trimmedSession
         )
@@ -231,6 +231,31 @@ final class AppModel {
         for id in expired {
             try? deleteDocument(id)
         }
+    }
+
+    // MARK: 업데이트 알림
+
+    /// 목록 위에 띄울 새 버전. 닫으면 그 버전은 다시 알리지 않는다
+    var updateBanner: AvailableUpdate? {
+        UpdateCheck.banner(
+            cached: settings.availableUpdate,
+            current: UpdateCheck.installedVersion,
+            dismissed: settings.dismissedUpdateVersion
+        )
+    }
+
+    /// 하루에 한 번 GitHub에 묻는다. 묻지 못하면 기록을 남기지 않아 다음에 앞으로 올 때 다시 묻는다
+    func checkForUpdate(now: Date = .now) async {
+        // 단위 테스트가 앱을 띄울 때는 GitHub에 묻지 않는다
+        guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
+        guard UpdateCheck.shouldCheck(lastCheckedAt: settings.lastUpdateCheckAt, now: now) else { return }
+        guard let release = try? await UpdateCheck.fetchLatest(session: urlSession) else { return }
+        settings.lastUpdateCheckAt = now
+        settings.availableUpdate = UpdateCheck.available(in: release, current: UpdateCheck.installedVersion)
+    }
+
+    func dismissUpdate() {
+        settings.dismissedUpdateVersion = settings.availableUpdate?.version
     }
 
     // MARK: 짝짓기

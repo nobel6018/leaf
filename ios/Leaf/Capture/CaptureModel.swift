@@ -23,7 +23,10 @@ final class CaptureModel {
     private(set) var cameraError: String?
     /// 다음 촬영으로 바꿀 페이지
     var retakeTarget: UUID?
-    var layout: PageLayout
+    /// 다음 촬영의 배치. 바꾸면 이 종류의 다음 새 문서도 이 배치로 시작한다
+    var layout: PageLayout {
+        didSet { app.settings.setLastLayout(layout, for: document.kind) }
+    }
     var autoEnabled: Bool {
         didSet {
             app.settings.autoCaptureEnabled = autoEnabled
@@ -44,8 +47,14 @@ final class CaptureModel {
         source = DevicePlatform.isSimulator ? SyntheticFrameSource() : CameraService()
         engine = AutoCaptureEngine(tuning: app.settings.sensitivity.tuning)
         autoEnabled = app.settings.autoCaptureEnabled
-        // 책은 펼친 두 페이지가 기본. 문서에 이미 찍은 장이 있으면 마지막 장의 배치를 이어 간다
-        self.layout = layout ?? document.pages.last?.layout ?? (document.kind == .book ? .spread : .single)
+        // 문서에 이미 찍은 장이 있으면 마지막 장의 배치를 이어 간다. 없으면 이 종류에서 마지막에 고른 배치
+        self.layout = layout ?? document.pages.last?.layout ?? app.settings.lastLayout(for: document.kind)
+    }
+
+    /// 배치 선택지. 종류를 바꾼 문서의 마지막 장 배치가 목록에 없으면 그것도 보여 준다
+    var layoutChoices: [PageLayout] {
+        let choices = document.kind.layouts
+        return choices.contains(layout) ? choices : choices + [layout]
     }
 
     var cameraSession: CameraService? { source as? CameraService }

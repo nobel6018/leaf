@@ -82,11 +82,11 @@ enum RetentionPolicy {
 }
 
 enum DocumentNaming {
-    /// 기본 이름은 `세션_번호`. 같은 세션에서 쓴 가장 큰 번호 + 1이다. 세션이 없으면 `문서_번호`.
+    /// 기본 이름은 `묶음_번호`. 같은 묶음에서 쓴 가장 큰 번호 + 1이다. 묶음이 없으면 종류 이름을 쓴다(`문서_1`, `책_1`, `팜플렛_1`).
     /// 팜플렛은 나중에 Mac AI가 표지 OCR로 회사명을 추천한다
-    static func defaultName(session: String?, existingNames: [String]) -> String {
+    static func defaultName(session: String?, kind: DocumentKind = .document, existingNames: [String]) -> String {
         let trimmed = session?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let prefix = (trimmed.isEmpty ? "문서" : trimmed) + "_"
+        let prefix = (trimmed.isEmpty ? kind.label : trimmed) + "_"
         let used = existingNames.compactMap { name -> Int? in
             guard name.hasPrefix(prefix) else { return nil }
             return Int(name.dropFirst(prefix.count))
