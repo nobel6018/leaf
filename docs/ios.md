@@ -18,6 +18,10 @@ xcodebuild test -project Leaf.xcodeproj -scheme Leaf \
 - `xcode-select -p`가 CommandLineTools이면 `DEVELOPER_DIR`를 줘야 합니다
 - 최소 iOS 18, Swift 6(엄격한 동시성 검사)
 
+## 앱 아이콘
+
+`ios/Leaf/Assets.xcassets/AppIcon.appiconset`에 1024 정사각형 한 장을 둡니다. 원본은 `design/logo-ios-1024.png`이고, 로고를 바꾸면 이 파일도 같이 바꿉니다. 둥근 모서리와 투명도는 없어야 합니다. 빠져도 빌드는 성공하므로 release.yml이 `Assets.car`와 `CFBundleIcons`를 검사합니다.
+
 ## 설치
 
 AltStore로 본인 기기에만 설치합니다. 빌드는 서명 없이 하고 AltStore가 무료 Apple ID로 다시 서명합니다. 무료 Apple ID는 7일마다 다시 서명해야 하고 AltStore가 자동으로 갱신합니다.

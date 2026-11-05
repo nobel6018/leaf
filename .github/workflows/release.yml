@@ -103,6 +103,9 @@ jobs:
         run: |
           app=ios/build/Build/Products/Release-iphoneos/Leaf.app
           test -d "$app"
+          # 아이콘이 없어도 빌드는 성공하고 기기에 빈 격자 아이콘으로 설치된다. 여기서 막는다
+          test -f "$app/Assets.car"
+          /usr/bin/plutil -extract CFBundleIcons.CFBundlePrimaryIcon.CFBundleIconName raw -o - "$app/Info.plist" | grep -qx AppIcon
           mkdir -p ipa/Payload && cp -R "$app" ipa/Payload/leaf.app
           (cd ipa && zip -qry ../leaf-ios.ipa Payload)
           ls -la leaf-ios.ipa
