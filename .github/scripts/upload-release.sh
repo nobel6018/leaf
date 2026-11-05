@@ -4,8 +4,9 @@
 # 여러 작업이 동시에 만들려 하면 하나만 성공하므로, 만들기에 실패해도 Release가 있으면 그대로 올린다
 set -euo pipefail
 : "${TAG:?}" "${GITHUB_REPOSITORY:?}"
+notes="$(dirname "$0")/../release-notes.md"
 if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-  gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "leaf $TAG" --generate-notes --draft \
+  gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "leaf $TAG" --notes-file "$notes" --draft \
     || gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null
 fi
 printf '%s\n' "$@"

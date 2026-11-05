@@ -2,9 +2,19 @@
 
 코드: `.github/workflows/release.yml`, `.github/scripts/`
 
-## 올리는 법
+## 올리는 법 (sori와 같음)
 
-버전을 세 곳에서 올립니다: `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`, `ios/project.yml`의 `MARKETING_VERSION`. 테스트가 통과하면 커밋과 `v*` 태그를 같이 push합니다.
+1. 버전을 네 곳에서 올립니다: `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`, `ios/project.yml`의 `MARKETING_VERSION`
+2. 로컬 테스트(`cargo test`, `pnpm build`, iPhone `xcodebuild test`, `mcp`의 `npm test`)가 통과하면 커밋과 `v*` 태그를 함께 push합니다. build.yml이 끝나길 기다렸다가 태그를 올리면 너무 오래 걸려서, build.yml은 나란히 돌리고 실패하면 고쳐서 다음 패치로 냅니다
+3. Release는 정식(prerelease 아님)입니다. 설치 안내는 `.github/release-notes.md`가 들어갑니다
+
+## 빌드 캐시 (sori와 같음)
+
+- GitHub 캐시는 브랜치 단위입니다. 태그에서 만든 캐시는 다음 태그가 못 읽고, main에서 만든 캐시는 모든 태그가 읽습니다
+- 그래서 release.yml을 매주 월요일 03:00 KST에 main에서 돌려 릴리스 빌드 캐시를 데웁니다(파일은 올리지 않음). main push로는 돌지 않습니다
+- 의존성을 크게 바꾼 직후에는 Actions에서 release를 손으로 한 번 돌리면 다음 태그가 빠릅니다
+- 릴리스 캐시 키에는 러너 이미지 버전을 넣습니다. 이미지가 바뀐 뒤 첫 빌드는 느린 게 정상입니다
+- build.yml(디버그)과 release.yml(릴리스)은 캐시 키 앞부분(`v1-debug`, `v1-release`)을 나눠 서로의 캐시를 덮지 않습니다
 
 release.yml이 만드는 것:
 
