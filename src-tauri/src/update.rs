@@ -1,4 +1,4 @@
-//! macOS 앱 메뉴(leaf)의 "leaf에 관하여" 아래에 "업데이트 확인하기…"를 넣는다. 누르면 화면에 check-update를 보낸다.
+//! macOS 앱 메뉴(scanshelf)의 "scanshelf에 관하여" 아래에 "업데이트 확인하기…"를 넣는다. 누르면 화면에 check-update를 보낸다.
 //! 설치와 다시 켜기는 화면(src/update/useAppUpdate.ts)이 사람이 버튼을 누를 때만 한다.
 //!
 //! @see docs/update.md

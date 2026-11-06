@@ -8,12 +8,12 @@ iPhone 없이 Mac에 있는 그림과 PDF를 보관함에 넣습니다. 들어�
 
 | 길 | 어디서 받나 |
 |---|---|
-| Finder 우클릭 "다음으로 열기 > leaf", Dock 아이콘에 끌어다 놓기 | `lib.rs` `RunEvent::Opened` → `Action::Import` → 화면이 `import_files` |
+| Finder 우클릭 "다음으로 열기 > scanshelf", Dock 아이콘에 끌어다 놓기 | `lib.rs` `RunEvent::Opened` → `Action::Import` → 화면이 `import_files` |
 | 앱이 이미 떠 있을 때 두 번째 실행 인자 | `lib.rs` single-instance → 같음 |
 | 창에 끌어다 놓기 | `App.tsx` `onDragDropEvent` → `import_files` |
 | 파일 메뉴 "가져오기…"(⌘O), 사이드바 "가져오기" | `actions::add_import_menu` → `Action::PickImport` → `pick_import_files` → `import_files` |
 
-leaf는 Finder에 보조 앱(`LSHandlerRank: Alternate`)으로만 등록해 jpg, png, heic, PDF의 기본 앱을 바꾸지 않습니다(`src-tauri/tauri.macos.conf.json`). Windows 설치 파일은 파일 연결을 넣으면 기본 앱을 덮어써서 macOS 설정에만 둡니다.
+scanshelf는 Finder에 보조 앱(`LSHandlerRank: Alternate`)으로만 등록해 jpg, png, heic, PDF의 기본 앱을 바꾸지 않습니다(`src-tauri/tauri.macos.conf.json`). Windows 설치 파일은 파일 연결을 넣으면 기본 앱을 덮어써서 macOS 설정에만 둡니다.
 
 ## 받는 파일
 

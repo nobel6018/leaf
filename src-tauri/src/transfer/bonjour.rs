@@ -1,13 +1,13 @@
-//! Bonjour(`_leaf._tcp`) 알림. iPhone은 `NWBrowser`로 찾는다.
+//! Bonjour(`_scanshelf._tcp`) 알림. iPhone은 `NWBrowser`로 찾는다.
 //!
 //! macOS는 시스템 mDNSResponder에 등록한다(`DNSServiceRegister`). 순수 Rust 구현(mdns-sd)은 자체 응답기를 돌리는데,
 //! macOS에서는 mDNSResponder가 이미 5353 포트를 쥐고 있어 광고가 루프백에만 보이고 Wi-Fi로 나가지 않았다
-//! (v0.1.0에서 iPhone이 Mac을 못 찾은 원인, `dns-sd -B _leaf._tcp`의 if 열이 1뿐이었다).
+//! (v0.1.0에서 iPhone이 Mac을 못 찾은 원인, `dns-sd -B _scanshelf._tcp`의 if 열이 1뿐이었다).
 //! 다른 OS(Windows 등)는 mdns-sd를 쓴다.
 //!
 //! @see docs/transfer.md
 
-pub const SERVICE_TYPE: &str = "_leaf._tcp.local.";
+pub const SERVICE_TYPE: &str = "_scanshelf._tcp.local.";
 
 #[cfg(target_os = "macos")]
 pub use macos::Advertiser;
@@ -58,7 +58,7 @@ mod macos {
         pub fn start(mac_name: &str, port: u16) -> Result<Advertiser, String> {
             let name =
                 CString::new(mac_name).map_err(|_| "Mac 이름에 NUL 문자가 있다".to_string())?;
-            let regtype = CString::new("_leaf._tcp").expect("고정 문자열");
+            let regtype = CString::new("_scanshelf._tcp").expect("고정 문자열");
             let txt = super::txt_record();
             let mut sd_ref: DnsServiceRef = ptr::null_mut();
             // 이름, 호스트, 도메인을 시스템 기본값(이 Mac의 이름과 .local)으로 두고, 콜백 없이 등록한다.
@@ -143,7 +143,7 @@ mod portable {
 }
 
 /// DNS 호스트 이름 한 칸(영문, 숫자, 하이픈). Mac 이름이 한글뿐이면 기본값을 쓴다.
-/// 실제 Mac 호스트 이름과 겹치지 않게 `leaf-`를 붙인다
+/// 실제 Mac 호스트 이름과 겹치지 않게 `scanshelf-`를 붙인다
 #[cfg_attr(target_os = "macos", allow(dead_code))]
 fn host_label(mac_name: &str) -> String {
     let cleaned: String = mac_name
@@ -157,7 +157,7 @@ fn host_label(mac_name: &str) -> String {
         })
         .collect();
     let trimmed = cleaned.trim_matches('-');
-    let mut label = String::from("leaf");
+    let mut label = String::from("scanshelf");
     if !trimmed.is_empty() {
         label.push('-');
         label.push_str(trimmed);
@@ -180,17 +180,17 @@ mod tests {
     fn 호스트_이름은_영문_숫자_하이픈만_쓴다() {
         assert_eq!(
             host_label("Leedo's MacBook Pro"),
-            "leaf-leedo-s-macbook-pro"
+            "scanshelf-leedo-s-macbook-pro"
         );
-        assert_eq!(host_label("이도의 맥북"), "leaf");
+        assert_eq!(host_label("이도의 맥북"), "scanshelf");
     }
 
     /// 실제 네트워크에 알려지는지 손으로 확인할 때만 돌린다.
-    /// `cargo test -p leaf bonjour_광고 -- --ignored` 중에 `dns-sd -B _leaf._tcp`의 if 열에 Wi-Fi(en0) 번호가 보여야 한다
+    /// `cargo test -p scanshelf bonjour_광고 -- --ignored` 중에 `dns-sd -B _scanshelf._tcp`의 if 열에 Wi-Fi(en0) 번호가 보여야 한다
     #[test]
     #[ignore]
     fn bonjour_광고를_잠깐_띄운다() {
-        let _advertiser = super::Advertiser::start("leaf 확인용", 45999).unwrap();
+        let _advertiser = super::Advertiser::start("scanshelf 확인용", 45999).unwrap();
         std::thread::sleep(std::time::Duration::from_secs(8));
     }
 }

@@ -2,20 +2,20 @@ import { readFile, readdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { isAbsolute, join, normalize as normalizePath, sep } from "node:path";
 
-// leaf 보관함 폴더를 직접 읽는다. 쓰지는 않는다.
-// 형식은 crates/leaf-core/src/ 와 같아야 한다(lib.rs, overrides.rs, processing.rs, ocr.rs, summary.rs, tags.rs)
+// scanshelf 보관함 폴더를 직접 읽는다. 쓰지는 않는다.
+// 형식은 crates/scanshelf-core/src/ 와 같아야 한다(lib.rs, overrides.rs, processing.rs, ocr.rs, summary.rs, tags.rs)
 // @see ../../docs/mcp.md
 // @see ../../docs/document-format.md
 
-/** leaf-core SCHEMA_VERSION. 이보다 큰 manifest는 읽지 않는다(앱과 같은 규칙) */
+/** scanshelf-core SCHEMA_VERSION. 이보다 큰 manifest는 읽지 않는다(앱과 같은 규칙) */
 export const SCHEMA_VERSION = 1;
-/** leaf-core PIPELINE_VERSION. 이보다 낮은 출력은 다시 처리할 대상이다 */
+/** scanshelf-core PIPELINE_VERSION. 이보다 낮은 출력은 다시 처리할 대상이다 */
 export const PIPELINE_VERSION = 1;
 
-/** Mac 앱 데이터 폴더(Tauri app_data_dir) 아래 library/. LEAF_LIBRARY_DIR로 바꿀 수 있다 */
+/** Mac 앱 데이터 폴더(Tauri app_data_dir) 아래 library/. SCANSHELF_LIBRARY_DIR로 바꿀 수 있다 */
 export function defaultLibraryDir(): string {
-  if (process.env.LEAF_LIBRARY_DIR) return process.env.LEAF_LIBRARY_DIR;
-  return join(homedir(), "Library/Application Support/com.nobel6018.leaf/library");
+  if (process.env.SCANSHELF_LIBRARY_DIR) return process.env.SCANSHELF_LIBRARY_DIR;
+  return join(homedir(), "Library/Application Support/com.nobel6018.scanshelf/library");
 }
 
 export type DocumentKind = "pamphlet" | "book" | "document";
@@ -127,7 +127,7 @@ async function readJson<T>(path: string): Promise<T | null> {
 
 const lower = (id: string) => id.toLowerCase();
 
-/** leaf-core tags.rs normalize_tag */
+/** scanshelf-core tags.rs normalize_tag */
 export function normalizeTag(raw: string): string | null {
   const parts = raw
     .trim()
@@ -140,7 +140,7 @@ export function normalizeTag(raw: string): string | null {
   return tag.replace(/\/+$/, "");
 }
 
-/** leaf-core tags.rs normalize_tags. 순서는 지키고 대소문자만 다른 태그는 처음 것만 남긴다 */
+/** scanshelf-core tags.rs normalize_tags. 순서는 지키고 대소문자만 다른 태그는 처음 것만 남긴다 */
 export function normalizeTags(raw: string[]): string[] {
   const out: string[] = [];
   for (const t of raw) {
@@ -152,7 +152,7 @@ export function normalizeTags(raw: string[]): string[] {
 }
 
 /**
- * leaf-core tags.rs matches. 하위 태그(분야/냉각/액침)가 붙은 문서도 상위(분야/냉각)에 든다.
+ * scanshelf-core tags.rs matches. 하위 태그(분야/냉각/액침)가 붙은 문서도 상위(분야/냉각)에 든다.
  * 필터는 normalizeTag로 정리하고, 대소문자는 무시한다(normalize_tags가 대소문자만 다른 태그를 하나로 보기 때문)
  */
 export function tagMatches(tags: string[], filter: string): boolean {

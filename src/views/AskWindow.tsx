@@ -5,7 +5,7 @@ import { AskPanel } from "./AskPanel";
 import { readTagFilter, useDocumentTags } from "./TagTree";
 import { registerCommand } from "../shortcuts";
 
-const OPEN_EVENT = "leaf:open-ask";
+const OPEN_EVENT = "scanshelf:open-ask";
 
 /** ⌘J 질문 창을 연다. 단축키, 빠른 열기, 메뉴 어디서든 부른다 */
 export function openAsk() {

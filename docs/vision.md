@@ -1,6 +1,6 @@
-# 이미지 처리 (leaf-vision)
+# 이미지 처리 (scanshelf-vision)
 
-코드: `crates/leaf-vision/`. 입력과 출력은 `image::RgbImage`이고 macOS API를 쓰지 않습니다. 모델은 ONNX Runtime(`ort`)으로 돌리고, macOS에서는 CoreML 실행기를 붙입니다. Windows로 넓힐 때 바꿀 곳은 실행기 선택(`models.rs`의 `load`)뿐입니다.
+코드: `crates/scanshelf-vision/`. 입력과 출력은 `image::RgbImage`이고 macOS API를 쓰지 않습니다. 모델은 ONNX Runtime(`ort`)으로 돌리고, macOS에서는 CoreML 실행기를 붙입니다. Windows로 넓힐 때 바꿀 곳은 실행기 선택(`models.rs`의 `load`)뿐입니다.
 
 원근 보정(`perspective.rs`)은 mac-pipeline 담당이고, 이 문서는 그 뒤 단계를 다룹니다.
 
@@ -50,10 +50,10 @@
 만들기(저장소 밖 가상환경, Python 3.12):
 
 ```sh
-uv venv -p 3.12 /tmp/leaf-models-venv
-uv pip install --python /tmp/leaf-models-venv/bin/python torch onnx onnxruntime onnxscript numpy
-/tmp/leaf-models-venv/bin/python scripts/models/export_uvdoc.py --work /tmp/leaf-models-src --out ~/leedo/leaf-models/uvdoc.onnx
-/tmp/leaf-models-venv/bin/python scripts/models/fetch_lama.py --out ~/leedo/leaf-models/lama_fp32.onnx
+uv venv -p 3.12 /tmp/scanshelf-models-venv
+uv pip install --python /tmp/scanshelf-models-venv/bin/python torch onnx onnxruntime onnxscript numpy
+/tmp/scanshelf-models-venv/bin/python scripts/models/export_uvdoc.py --work /tmp/scanshelf-models-src --out ~/leedo/scanshelf-models/uvdoc.onnx
+/tmp/scanshelf-models-venv/bin/python scripts/models/fetch_lama.py --out ~/leedo/scanshelf-models/lama_fp32.onnx
 ```
 
 `export_uvdoc.py`는 커밋과 가중치 해시를 고정하고, 내보낸 ONNX 출력이 PyTorch와 같은지(최대 차이 1.3e-6) 확인합니다. 두 번 내보내면 바이트 단위로 같은 파일이 나옵니다.
@@ -119,14 +119,14 @@ UVDoc이 488x712 입력에서 45x31 역방향 격자(출력 각 점이 원본 �
 
 ## 평가
 
-`crates/leaf-vision/tests/synthetic.rs`. 실제 책이나 스캔은 쓰지 않습니다. 시스템 글꼴(Times New Roman, Arial, DejaVu)이 있으면 뜻 없는 낱말로 페이지를 그리고, 없으면 낱말 크기 막대로 대신합니다. 원통형 굽음, 접힌 쪽 그림자, 손가락(타원), 색 펜 물결선을 합성해 넣습니다.
+`crates/scanshelf-vision/tests/synthetic.rs`. 실제 책이나 스캔은 쓰지 않습니다. 시스템 글꼴(Times New Roman, Arial, DejaVu)이 있으면 뜻 없는 낱말로 페이지를 그리고, 없으면 낱말 크기 막대로 대신합니다. 원통형 굽음, 접힌 쪽 그림자, 손가락(타원), 색 펜 물결선을 합성해 넣습니다.
 
 ```sh
-cargo test -p leaf-vision                                   # 모델 없이 도는 시험
-LEAF_MODELS_DIR=~/leedo/leaf-models cargo test -p leaf-vision --release --test synthetic          # 모델 시험 포함
-LEAF_MODELS_DIR=~/leedo/leaf-models LEAF_EVAL_OUT=/tmp/leaf-eval \
-  cargo test -p leaf-vision --release --test synthetic -- --ignored --nocapture                  # 전후 이미지와 속도
-LEAF_MODELS_DIR=~/leedo/leaf-models cargo run -p leaf-vision --release --example bench            # 단계별 시간
+cargo test -p scanshelf-vision                                   # 모델 없이 도는 시험
+SCANSHELF_MODELS_DIR=~/leedo/scanshelf-models cargo test -p scanshelf-vision --release --test synthetic          # 모델 시험 포함
+SCANSHELF_MODELS_DIR=~/leedo/scanshelf-models SCANSHELF_EVAL_OUT=/tmp/scanshelf-eval \
+  cargo test -p scanshelf-vision --release --test synthetic -- --ignored --nocapture                  # 전후 이미지와 속도
+SCANSHELF_MODELS_DIR=~/leedo/scanshelf-models cargo run -p scanshelf-vision --release --example bench            # 단계별 시간
 ```
 
 지표는 두 가지입니다. 글줄 뾰족함은 이진화한 뒤 가로 행별 잉크 수의 표준편차/평균이고, 글줄이 곧을수록 큽니다. SSIM은 평평한 원본과 가로 400으로 맞춰 비교하는데, 보정 결과는 페이지 경계에 맞춰 잘리고 비율이 조금 달라 정렬 오차가 섞이므로 참고 값입니다.
@@ -149,7 +149,7 @@ LEAF_MODELS_DIR=~/leedo/leaf-models cargo run -p leaf-vision --release --example
 면 셋(폭 500, 하나는 6~21화소 좁음, 높이 1060)을 글자로 그리고 접은 자국(가우시안 폭 1.5화소), 면 밝기, 전체 조명 기울기, 남은 원근(꼭짓점 흔들기)을 넣습니다. 정답 선은 원근 변환으로 옮긴 선의 위아래 끝이고, 오차는 두 선 위아래 끝 중 가장 큰 값입니다. 오차 12화소(폭의 0.8%, A4 접지에서 약 2.4mm) 미만을 정확히 나눈 것으로 셉니다.
 
 ```sh
-cargo test -p leaf-vision --release --test trifold -- --nocapture
+cargo test -p scanshelf-vision --release --test trifold -- --nocapture
 ```
 
 | 조건(각 8장) | 정확히 나눔 | 오차 평균 | 오차 최대 |

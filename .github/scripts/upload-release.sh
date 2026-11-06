@@ -6,7 +6,7 @@ set -euo pipefail
 : "${TAG:?}" "${GITHUB_REPOSITORY:?}"
 notes="$(dirname "$0")/../release-notes.md"
 if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-  gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "leaf $TAG" --notes-file "$notes" --draft \
+  gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "scanshelf $TAG" --notes-file "$notes" --draft \
     || gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null
 fi
 printf '%s\n' "$@"

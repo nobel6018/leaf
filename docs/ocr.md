@@ -1,6 +1,6 @@
 # OCR (Mac)
 
-코드: `src-tauri/src/ocr/` (`mod.rs` 공통, `macos.rs` Vision, `blocks.rs` 블록 묶기). 결과 형식: `crates/leaf-core/src/ocr.rs`
+코드: `src-tauri/src/ocr/` (`mod.rs` 공통, `macos.rs` Vision, `blocks.rs` 블록 묶기). 결과 형식: `crates/scanshelf-core/src/ocr.rs`
 
 ## 엔진
 
@@ -26,7 +26,7 @@ Windows는 `ocr/windows.rs`(Windows.Media.Ocr)를 더하고 `ocr::recognize`의 
 
 macOS 26의 `RecognizeDocumentsRequest`는 Swift 전용(구조체 API)이라 objc2로 부를 수 없습니다. 연결 방법:
 
-1. `src-tauri/swift/LeafDocumentOCR.swift`에 `@_cdecl("leaf_recognize_document") func(path: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar>?`를 두고, 결과를 `OcrPage` JSON(`engine: vision-recognize-documents`)으로 돌려줍니다. 해제 함수도 같이 노출합니다
+1. `src-tauri/swift/ScanshelfDocumentOCR.swift`에 `@_cdecl("scanshelf_recognize_document") func(path: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar>?`를 두고, 결과를 `OcrPage` JSON(`engine: vision-recognize-documents`)으로 돌려줍니다. 해제 함수도 같이 노출합니다
 2. `build.rs`에서 `swiftc -emit-library -static -target arm64-apple-macos26`으로 만들고 `cargo:rustc-link-lib=static`, Swift 런타임 경로(`/usr/lib/swift`)를 링크합니다
 3. `ocr::recognize`에서 macOS 26 이상이면 Swift 쪽을 먼저 부르고, 실패하거나 낮은 버전이면 지금 경로로 돌아갑니다
 

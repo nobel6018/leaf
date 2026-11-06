@@ -19,10 +19,10 @@ DerivedData
 !.env.example
 
 # 스캔 결과: 회사 자료와 개인 소장 책이 들어간다. 테스트도 fixtures/의 합성 데이터만 쓴다
-# 저장소 맨 위에만 건다. macOS는 대소문자를 구분하지 않아(core.ignorecase) `library/`가 ios/Leaf/Library 소스까지 숨겼다
+# 저장소 맨 위에만 건다. macOS는 대소문자를 구분하지 않아(core.ignorecase) `library/`가 ios/Scanshelf/Library 소스까지 숨겼다
 /library/
 /scans/
-*.leafdoc/
+*.scanshelfdoc/
 
 # 편집기
 .DS_Store

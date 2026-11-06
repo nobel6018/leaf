@@ -1,4 +1,4 @@
-//! 앱 밖에서 들어오는 요청(전역 단축키, leaf:// 링크, Finder의 "다음으로 열기", 메뉴의 가져오기)을 화면에 전달한다.
+//! 앱 밖에서 들어오는 요청(전역 단축키, scanshelf:// 링크, Finder의 "다음으로 열기", 메뉴의 가져오기)을 화면에 전달한다.
 //! 열린 문서와 화면 상태는 프론트가 들고 있으므로, 여기서는 할 일을 정해 `app-action` 이벤트로 넘기기만 한다.
 //! 우클릭 메뉴와 빠른 찾기가 쓰는 문서 단위 명령(지우기, Finder에서 보기, 마크다운)도 여기에 둔다.
 //!
@@ -19,7 +19,7 @@ pub const EVENT: &str = "app-action";
 pub const EVENT_DOCUMENT_DELETED: &str = "document-deleted";
 /// macOS ⌥⇧⌘L. 세 수식키를 같이 누르는 조합이라 다른 앱과 잘 겹치지 않는다
 pub const SHOW_WINDOW_SHORTCUT: &str = "CommandOrControl+Alt+Shift+L";
-const IMPORT_MENU_ID: &str = "leaf-import";
+const IMPORT_MENU_ID: &str = "scanshelf-import";
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
@@ -90,14 +90,14 @@ pub fn frontend_ready(app: AppHandle) -> ReadyInfo {
 pub fn handle_url(app: &AppHandle, url: &Url) {
     match parse_url(url) {
         Some(action) => dispatch(app, action),
-        None => eprintln!("알 수 없는 leaf 링크: {url}"),
+        None => eprintln!("알 수 없는 scanshelf 링크: {url}"),
     }
 }
 
-/// leaf://open/<문서 id>?page=3, leaf://open?id=<문서 id>&page=3, leaf://search?q=검색어, leaf://show.
+/// scanshelf://open/<문서 id>?page=3, scanshelf://open?id=<문서 id>&page=3, scanshelf://search?q=검색어, scanshelf://show.
 /// 화면을 보여 주기만 하고 데이터를 바꾸지 않아 토큰을 받지 않는다. 지우기나 가져오기 링크는 만들지 않는다
 pub fn parse_url(url: &Url) -> Option<Action> {
-    if url.scheme() != "leaf" {
+    if url.scheme() != "scanshelf" {
         return None;
     }
     let query = |key: &str| url.query_pairs().find(|(k, _)| k == key).map(|(_, v)| v.into_owned());
@@ -126,7 +126,7 @@ pub fn register_global_shortcut(app: &AppHandle) {
         .and_then(|s| app.global_shortcut().register(s).map_err(|e| e.to_string()));
     if let Err(error) = result {
         *app.state::<Bus>().shortcut_error.lock().unwrap_or_else(|e| e.into_inner()) =
-            Some(format!("leaf 창 앞으로 단축키(⌥⇧⌘L)를 등록하지 못했습니다. 다른 앱이 쓰고 있을 수 있습니다: {error}"));
+            Some(format!("scanshelf 창 앞으로 단축키(⌥⇧⌘L)를 등록하지 못했습니다. 다른 앱이 쓰고 있을 수 있습니다: {error}"));
     }
 }
 
@@ -162,7 +162,7 @@ pub fn reveal_document(app: AppHandle, document_id: String) -> Result<(), String
 pub struct QuickOpenEntry {
     pub id: String,
     pub name: String,
-    pub kind: leaf_core::DocumentKind,
+    pub kind: scanshelf_core::DocumentKind,
     pub session: Option<String>,
     pub tags: Vec<String>,
     pub page_count: usize,
@@ -183,7 +183,7 @@ fn scan_entries(library: &Path) -> Vec<QuickOpenEntry> {
     let mut out: Vec<QuickOpenEntry> = entries
         .flatten()
         .map(|e| e.path())
-        .filter(|dir| dir.join(leaf_core::MANIFEST_FILE).is_file())
+        .filter(|dir| dir.join(scanshelf_core::MANIFEST_FILE).is_file())
         .filter_map(|dir| {
             let (manifest, edits) = load_applied(&dir).ok()?;
             Some(QuickOpenEntry {
@@ -226,7 +226,7 @@ pub fn build_markdown(dir: &Path) -> Result<String, String> {
         let text = output
             .ocr
             .as_ref()
-            .and_then(|p| read_json::<leaf_core::ocr::OcrPage>(&dir.join(p)).ok().flatten())
+            .and_then(|p| read_json::<scanshelf_core::ocr::OcrPage>(&dir.join(p)).ok().flatten())
             .map(|ocr| ocr.text.trim().to_string())
             .unwrap_or_default();
         out.push_str(&format!("\n## {}쪽\n\n", index + 1));
@@ -308,39 +308,39 @@ mod tests {
     #[test]
     fn 열기_링크는_경로의_id와_쪽을_읽는다() {
         assert_eq!(
-            parse(&format!("leaf://open/{ID}?page=3")),
+            parse(&format!("scanshelf://open/{ID}?page=3")),
             Some(Action::Open { id: ID.into(), page: Some(3) })
         );
-        assert_eq!(parse(&format!("leaf://open/{ID}")), Some(Action::Open { id: ID.into(), page: None }));
+        assert_eq!(parse(&format!("scanshelf://open/{ID}")), Some(Action::Open { id: ID.into(), page: None }));
         assert_eq!(
-            parse(&format!("leaf://open?id={ID}&page=2")),
+            parse(&format!("scanshelf://open?id={ID}&page=2")),
             Some(Action::Open { id: ID.into(), page: Some(2) })
         );
     }
 
     #[test]
     fn 열기_링크의_잘못된_id와_쪽은_버린다() {
-        assert_eq!(parse("leaf://open/../../etc"), None);
-        assert_eq!(parse("leaf://open?id=nope"), None);
-        assert_eq!(parse(&format!("leaf://open/{ID}?page=0")), Some(Action::Open { id: ID.into(), page: None }));
-        assert_eq!(parse(&format!("leaf://open/{ID}?page=x")), Some(Action::Open { id: ID.into(), page: None }));
+        assert_eq!(parse("scanshelf://open/../../etc"), None);
+        assert_eq!(parse("scanshelf://open?id=nope"), None);
+        assert_eq!(parse(&format!("scanshelf://open/{ID}?page=0")), Some(Action::Open { id: ID.into(), page: None }));
+        assert_eq!(parse(&format!("scanshelf://open/{ID}?page=x")), Some(Action::Open { id: ID.into(), page: None }));
     }
 
     #[test]
     fn 검색_링크는_한국어_검색어를_읽는다() {
         assert_eq!(
-            parse("leaf://search?q=%EB%8D%B0%EC%9D%B4%ED%84%B0%EC%84%BC%ED%84%B0"),
+            parse("scanshelf://search?q=%EB%8D%B0%EC%9D%B4%ED%84%B0%EC%84%BC%ED%84%B0"),
             Some(Action::Search { query: "데이터센터".into() })
         );
-        assert_eq!(parse("leaf://search"), Some(Action::Search { query: String::new() }));
+        assert_eq!(parse("scanshelf://search"), Some(Action::Search { query: String::new() }));
     }
 
     #[test]
     fn 다른_스킴과_모르는_경로는_무시한다() {
         assert_eq!(parse(&format!("https://open/{ID}")), None);
-        assert_eq!(parse(&format!("leaf://delete/{ID}")), None);
-        assert_eq!(parse("leaf://show/x"), None);
-        assert_eq!(parse("leaf://show"), Some(Action::ShowWindow));
+        assert_eq!(parse(&format!("scanshelf://delete/{ID}")), None);
+        assert_eq!(parse("scanshelf://show/x"), None);
+        assert_eq!(parse("scanshelf://show"), Some(Action::ShowWindow));
     }
 
     #[test]
@@ -390,7 +390,7 @@ mod tests {
     fn 마크다운은_이름_묶음_태그와_쪽별_글자를_담는다() {
         let root = tempfile::tempdir().unwrap();
         let dir = crate::import::tests::write_sample_document(root.path(), "예시 문서", &["첫 쪽 글자", ""]);
-        let edits = leaf_core::overrides::Edits {
+        let edits = scanshelf_core::overrides::Edits {
             session: Some("2026 예시박람회".into()),
             tags: vec!["분야/냉각".into()],
             ..Default::default()
@@ -411,10 +411,10 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let older = crate::import::tests::write_sample_document(root.path(), "옛 문서", &[]);
         let newer = crate::import::tests::write_sample_document(root.path(), "새 문서", &[]);
-        let mut manifest = leaf_core::Manifest::load(&newer).unwrap();
+        let mut manifest = scanshelf_core::Manifest::load(&newer).unwrap();
         manifest.created_at += chrono::Duration::days(1);
         manifest.save(&newer).unwrap();
-        leaf_core::overrides::Edits {
+        scanshelf_core::overrides::Edits {
             tags: vec!["책/경제".into()],
             ..Default::default()
         }

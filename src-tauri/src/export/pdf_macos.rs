@@ -5,7 +5,7 @@
 
 use std::path::Path;
 
-use leaf_core::ocr::OcrPage;
+use scanshelf_core::ocr::OcrPage;
 use objc2_core_foundation::{
     CFDictionary, CFRetained, CFString, CFType, CFURL, CGAffineTransform, CGPoint, CGRect, CGSize, CFAttributedString,
 };
@@ -25,7 +25,7 @@ const TEXT_FONT: &str = "AppleSDGothicNeo-Regular";
 pub fn write_pdf(path: &Path, title: &str, pages: &[PdfPage]) -> Result<(), String> {
     let url = CFURL::from_file_path(path).ok_or("PDF 경로가 올바르지 않다")?;
     let title_value = CFString::from_str(title);
-    let creator = CFString::from_static_str("leaf");
+    let creator = CFString::from_static_str("scanshelf");
     let keys: [&CFString; 2] = unsafe { [kCGPDFContextTitle, kCGPDFContextCreator] };
     let values: [&CFType; 2] = [&title_value, &creator];
     let info = CFDictionary::<CFString, CFType>::from_slices(&keys, &values);

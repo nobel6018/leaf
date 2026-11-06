@@ -17,15 +17,15 @@ use std::path::{Path, PathBuf};
 
 use chrono::Utc;
 use image::RgbImage;
-use leaf_core::processing::{OutputPage, PIPELINE_VERSION, PagePart, ProcessOptions, Processing};
-use leaf_core::{Manifest, Page, Quad};
+use scanshelf_core::processing::{OutputPage, PIPELINE_VERSION, PagePart, ProcessOptions, Processing};
+use scanshelf_core::{Manifest, Page, Quad};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 pub use worker::{JobState, Pipeline};
 
-use leaf_core::fsio::write_atomic;
+use scanshelf_core::fsio::write_atomic;
 
 use crate::library::{load_processing, read_json, write_json};
 
@@ -159,7 +159,7 @@ pub struct ProcessContext<'a> {
     /// 문서 단위로 processing.json 읽고 쓰기를 묶는다(화면의 옵션 저장과 겹치지 않게)
     pub io_lock: &'a std::sync::Mutex<()>,
     pub force: bool,
-    pub models: &'a leaf_vision::Models,
+    pub models: &'a scanshelf_vision::Models,
     pub on_progress: &'a dyn Fn(Progress),
 }
 

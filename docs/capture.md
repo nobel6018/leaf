@@ -1,6 +1,6 @@
 # 자동 촬영 설계 (iPhone)
 
-거치대에 iPhone을 고정하고 종이만 바꿔 놓으면 한 장씩 찍히는 흐름이 목표입니다. 코드는 `ios/Leaf/Capture/`에 있습니다.
+거치대에 iPhone을 고정하고 종이만 바꿔 놓으면 한 장씩 찍히는 흐름이 목표입니다. 코드는 `ios/Scanshelf/Capture/`에 있습니다.
 
 ## 상태
 
@@ -23,7 +23,7 @@ feature print는 프레임당 수십 ms라 필요할 때만 잽니다(`AutoCaptu
 
 ## 기준값
 
-`ios/Leaf/Capture/AutoCapture.swift` `AutoCaptureTuning`. 설정의 민감도가 세 묶음 중 하나를 고릅니다. 모두 시작값이고 실제 문서, 책, 팜플렛으로 맞춥니다.
+`ios/Scanshelf/Capture/AutoCapture.swift` `AutoCaptureTuning`. 설정의 민감도가 세 묶음 중 하나를 고릅니다. 모두 시작값이고 실제 문서, 책, 팜플렛으로 맞춥니다.
 
 | 값 | 둔하게 | 보통 | 민감하게 | 뜻 |
 |---|---|---|---|---|
@@ -46,7 +46,7 @@ feature print는 프레임당 수십 ms라 필요할 때만 잽니다(`AutoCaptu
 
 ## 좌표
 
-manifest의 quad는 원본에 EXIF 회전을 적용한 뒤 기준 0~1이고 원점이 왼쪽 위입니다. 계산은 `ios/Leaf/Capture/QuadGeometry.swift`에 모으고 테스트(`QuadGeometryTests`)로 고정했습니다.
+manifest의 quad는 원본에 EXIF 회전을 적용한 뒤 기준 0~1이고 원점이 왼쪽 위입니다. 계산은 `ios/Scanshelf/Capture/QuadGeometry.swift`에 모으고 테스트(`QuadGeometryTests`)로 고정했습니다.
 
 - 앱은 세로 고정입니다. 분석 버퍼는 센서 방향(가로) 그대로 두고 Vision에 `.right`를 넘겨, 결과가 세로 표시 방향 기준으로 나오게 합니다
 - Vision 좌표는 원점이 왼쪽 아래라 y만 뒤집습니다(`QuadGeometry.fromVision`). 회전 뒤 꼭짓점 이름은 위치로 다시 붙입니다(`ordered`)
@@ -56,7 +56,7 @@ manifest의 quad는 원본에 EXIF 회전을 적용한 뒤 기준 0~1이고 원�
 ## 셔터
 
 - 자동 촬영을 끈 수동 모드도 둡니다(촬영 화면 오른쪽 위 "자동")
-- 볼륨 버튼과 블루투스 카메라 리모컨: `AVCaptureEventInteraction`(iOS 17.2+). 시중 리모컨은 볼륨 키 신호를 보내므로 같이 처리됩니다. 뗄 때(`.ended`) 한 번 찍습니다(`ios/Leaf/Views/CameraPreview.swift`)
+- 볼륨 버튼과 블루투스 카메라 리모컨: `AVCaptureEventInteraction`(iOS 17.2+). 시중 리모컨은 볼륨 키 신호를 보내므로 같이 처리됩니다. 뗄 때(`.ended`) 한 번 찍습니다(`ios/Scanshelf/Views/CameraPreview.swift`)
 - 촬영은 `AVCapturePhotoOutput` 최대 해상도(`supportedMaxPhotoDimensions` 중 가장 큰 값), HEVC 코덱으로 HEIC를 저장합니다
 - 찍히면 화면이 하얗게 번쩍이고 성공 진동이 옵니다. 실패하면 오류 진동과 안내 문구가 뜹니다
 - 촬영 화면에 있는 동안은 화면이 꺼지지 않습니다(`isIdleTimerDisabled`)

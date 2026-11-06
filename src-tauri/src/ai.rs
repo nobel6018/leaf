@@ -1,6 +1,6 @@
-//! 팜플렛 AI 정리와 AI 관련 내보내기 명령. 구현은 crates/leaf-ai, 여기서는 문서 위치, 작업 등록, 이벤트만 붙인다.
+//! 팜플렛 AI 정리와 AI 관련 내보내기 명령. 구현은 crates/scanshelf-ai, 여기서는 문서 위치, 작업 등록, 이벤트만 붙인다.
 //!
-//! leaf의 핵심은 스캔이다. AI 정리와 노션 CSV는 종류가 팜플렛인 문서에만 쓰는 선택 기능이고,
+//! scanshelf의 핵심은 스캔이다. AI 정리와 노션 CSV는 종류가 팜플렛인 문서에만 쓰는 선택 기능이고,
 //! 책과 일반 문서는 사람이 누르지 않는 한 외부(구독 CLI)로 보내지 않는다.
 //!
 //! @see docs/ai.md
@@ -8,9 +8,9 @@
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-use leaf_ai::{BundleOptions, DocxOptions, LlmConfig, NameSuggestion};
-use leaf_core::DocumentKind;
-use leaf_core::summary::PamphletSummary;
+use scanshelf_ai::{BundleOptions, DocxOptions, LlmConfig, NameSuggestion};
+use scanshelf_core::DocumentKind;
+use scanshelf_core::summary::PamphletSummary;
 use serde::Serialize;
 use tauri::Emitter;
 
@@ -35,14 +35,14 @@ pub async fn summarize_pamphlet(app: tauri::AppHandle, document_id: String) -> R
 
 fn summarize_dir(dir: &Path) -> Result<PamphletSummary, String> {
     let _busy = crate::busy::start(format!("AI 정리: {}", document_name(dir)));
-    leaf_ai::summarize_pamphlet(dir, &LlmConfig::default()).map_err(|e| e.to_string())
+    scanshelf_ai::summarize_pamphlet(dir, &LlmConfig::default()).map_err(|e| e.to_string())
 }
 
 /// 처리가 끝난 팜플렛에 정리가 아직 없으면 정리한다. 팜플렛만, 한 번만(다시 정리는 사람이 누른다)
 pub fn summarize_if_pamphlet(app: &tauri::AppHandle, document_id: &str) {
     let Ok(dir) = document_dir(app, document_id) else { return };
     let Ok((manifest, _)) = load_applied(&dir) else { return };
-    if manifest.kind != DocumentKind::Pamphlet || dir.join(leaf_core::summary::SUMMARY_FILE).exists() {
+    if manifest.kind != DocumentKind::Pamphlet || dir.join(scanshelf_core::summary::SUMMARY_FILE).exists() {
         return;
     }
     let app = app.clone();
@@ -63,7 +63,7 @@ pub async fn suggest_document_name(app: tauri::AppHandle, document_id: String) -
     let dir = document_dir(&app, &document_id)?;
     blocking(move || {
         let _busy = crate::busy::start(format!("이름 추천: {}", document_name(&dir)));
-        leaf_ai::suggest_document_name(&dir, &LlmConfig::default()).map_err(|e| e.to_string())
+        scanshelf_ai::suggest_document_name(&dir, &LlmConfig::default()).map_err(|e| e.to_string())
     })
     .await
 }
@@ -73,7 +73,7 @@ pub async fn export_docx(app: tauri::AppHandle, document_id: String) -> Result<S
     let dir = document_dir(&app, &document_id)?;
     blocking(move || {
         let _busy = crate::busy::start(format!("Word 내보내기: {}", document_name(&dir)));
-        let path = leaf_ai::export_docx(&dir, &DocxOptions::default()).map_err(|e| e.to_string())?;
+        let path = scanshelf_ai::export_docx(&dir, &DocxOptions::default()).map_err(|e| e.to_string())?;
         Ok(path.display().to_string())
     })
     .await
@@ -84,7 +84,7 @@ pub async fn export_ai_bundle(app: tauri::AppHandle, document_id: String) -> Res
     let dir = document_dir(&app, &document_id)?;
     blocking(move || {
         let _busy = crate::busy::start(format!("AI 묶음 내보내기: {}", document_name(&dir)));
-        let path = leaf_ai::export_ai_bundle(&dir, &BundleOptions::default()).map_err(|e| e.to_string())?;
+        let path = scanshelf_ai::export_ai_bundle(&dir, &BundleOptions::default()).map_err(|e| e.to_string())?;
         Ok(path.display().to_string())
     })
     .await
@@ -122,7 +122,7 @@ fn app_exports_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 }
 
 pub fn notion_export(library: &Path, exports_base: &Path, session: &str) -> Result<NotionExport, String> {
-    let dirs = leaf_ai::notion::session_document_dirs(library, session);
+    let dirs = scanshelf_ai::notion::session_document_dirs(library, session);
     if dirs.is_empty() {
         return Err(format!("'{session}' 묶음에 문서가 없다"));
     }
@@ -142,7 +142,7 @@ pub fn notion_export(library: &Path, exports_base: &Path, session: &str) -> Resu
         }
     }
     let csv = folder.join(format!("{}.csv", safe_file_name(session)));
-    let report = leaf_ai::export_notion_csv_with_files(&dirs, &csv, &|dir| pdf_names.get(dir).cloned())
+    let report = scanshelf_ai::export_notion_csv_with_files(&dirs, &csv, &|dir| pdf_names.get(dir).cloned())
         .map_err(|e| e.to_string())?;
     skipped.extend(report.skipped.iter().map(|s| format!("{}: {}", document_name(&s.dir), s.reason)));
     Ok(NotionExport {
@@ -159,7 +159,7 @@ fn fresh_pdf(dir: &Path) -> Result<PathBuf, String> {
     let (manifest, _) = load_applied(dir)?;
     let pdf = dir.join(crate::export::EXPORTS_DIR).join(format!("{}.pdf", safe_file_name(&manifest.name)));
     let modified = |p: &Path| std::fs::metadata(p).and_then(|m| m.modified()).ok();
-    let processed = modified(&dir.join(leaf_core::processing::PROCESSING_FILE)).unwrap_or(SystemTime::UNIX_EPOCH);
+    let processed = modified(&dir.join(scanshelf_core::processing::PROCESSING_FILE)).unwrap_or(SystemTime::UNIX_EPOCH);
     match modified(&pdf) {
         Some(made) if made >= processed => Ok(pdf),
         _ => export_to_dir(dir, ExportFormat::Pdf),

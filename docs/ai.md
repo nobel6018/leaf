@@ -1,6 +1,6 @@
 # 팜플렛 AI 정리와 내보내기
 
-코드: `crates/leaf-ai/src/`. 함수는 모두 동기 함수이고 문서 폴더 경로를 받습니다. Tauri 명령에서는 `spawn_blocking`으로 감싸 부릅니다.
+코드: `crates/scanshelf-ai/src/`. 함수는 모두 동기 함수이고 문서 폴더 경로를 받습니다. Tauri 명령에서는 `spawn_blocking`으로 감싸 부릅니다.
 
 | 기능 | 함수 | 결과 |
 |---|---|---|
@@ -23,7 +23,7 @@ API 키 없이 구독 로그인된 CLI를 하위 프로세스로 부릅니다(`c
 | Codex | `codex exec --sandbox read-only --skip-git-repo-check --ephemeral --color never -o <파일> -` |
 
 - 프롬프트는 표준 입력으로 넘깁니다. 도구를 모두 끄고 빈 임시 폴더에서 돌려, OCR 글자에 지시문이 섞여도 모델이 파일을 읽거나 명령을 실행하지 못합니다
-- 실행 파일 찾는 순서: `LlmConfig.program`, 환경 변수 `LEAF_CLAUDE_BIN`(Codex는 `LEAF_CODEX_BIN`), 대화형 로그인 셸의 PATH와 흔한 설치 위치. Finder에서 연 앱은 PATH가 짧아 셸에 PATH를 묻습니다
+- 실행 파일 찾는 순서: `LlmConfig.program`, 환경 변수 `SCANSHELF_CLAUDE_BIN`(Codex는 `SCANSHELF_CODEX_BIN`), 대화형 로그인 셸의 PATH와 흔한 설치 위치. Finder에서 연 앱은 PATH가 짧아 셸에 PATH를 묻습니다
 - 시간 상한 기본 300초(`DEFAULT_TIMEOUT`). 넘으면 프로세스 그룹째 끝냅니다
 - 실패하면 stderr 뒤쪽 800자를 오류에 담습니다. 로그인 안내 문구(`/login`, `Not logged in` 등)가 보이면 `AiError::NotLoggedIn`으로 구분합니다
 - 응답에서 첫 번째 완결된 JSON 객체를 꺼냅니다(`json.rs`). 코드 블록이나 앞뒤 설명이 붙어도 읽습니다. 못 읽으면 이유와 직전 응답을 붙여 한 번 더 묻고, 그래도 실패하면 `AiError::InvalidResponse`입니다
@@ -103,10 +103,10 @@ exports/<문서 이름>-ai/
 
 ## 테스트
 
-`crates/leaf-ai/tests/`. 합성 문서 폴더와 가짜 CLI(받은 프롬프트를 파일에 남기고 준비한 응답을 찍는 셸 스크립트)를 씁니다. 실제 회사 정보는 쓰지 않습니다.
+`crates/scanshelf-ai/tests/`. 합성 문서 폴더와 가짜 CLI(받은 프롬프트를 파일에 남기고 준비한 응답을 찍는 셸 스크립트)를 씁니다. 실제 회사 정보는 쓰지 않습니다.
 
 실제 claude로 확인하는 테스트는 기본 실행에서 뺐습니다.
 
 ```
-cargo test -p leaf-ai --test smoke -- --ignored --nocapture
+cargo test -p scanshelf-ai --test smoke -- --ignored --nocapture
 ```

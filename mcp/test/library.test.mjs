@@ -15,7 +15,7 @@ import { compact, findSpans, matchesWithInitials, snippet } from "../dist/search
 import { parseRange } from "../dist/server.js";
 import { buildLibrary, fixtureManifest, IDS, PAGE_IDS, solidJpeg } from "./library-fixture.mjs";
 
-describe("edits 적용 (crates/leaf-core/tests/edits.rs와 같은 경우)", () => {
+describe("edits 적용 (crates/scanshelf-core/tests/edits.rs와 같은 경우)", () => {
   test("맥에서 고친 이름과 꼭짓점이 우선한다", () => {
     const original = fixtureManifest("manifest-v1.json");
     const quad = { topLeft: { x: 0.1, y: 0.1 }, topRight: { x: 0.9, y: 0.1 }, bottomRight: { x: 0.9, y: 0.9 }, bottomLeft: { x: 0.1, y: 0.9 } };
@@ -67,7 +67,7 @@ describe("출력 페이지 순서", () => {
   });
 });
 
-describe("태그 (crates/leaf-core/src/tags.rs와 같은 규칙)", () => {
+describe("태그 (crates/scanshelf-core/src/tags.rs와 같은 규칙)", () => {
   test("하위 태그도 상위 필터에 든다", () => {
     const tags = ["업무/영업/한빛"];
     assert.ok(tagMatches(tags, "업무"));

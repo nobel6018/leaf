@@ -1,17 +1,17 @@
-//! 페이지 보정 단계. 단계마다 함수 하나이고 실제 처리는 leaf-vision이 한다.
+//! 페이지 보정 단계. 단계마다 함수 하나이고 실제 처리는 scanshelf-vision이 한다.
 //!
 //! 순서: 원근 보정 → 손가락 지우기 → 두 페이지 분리 → 곡면 보정 → 필기 지우기 → 조명과 필터
 //! 손가락은 곡면 보정 전에 지운다. 손가락은 펼친 책의 바깥 가장자리에서 들어오므로 원근만 편 사진에서 찾기 쉽고,
-//! 곡면 보정이 손 모양을 늘리기 전이라 지울 면적도 작다(leaf-vision process_source와 같은 순서, docs/vision.md).
+//! 곡면 보정이 손 모양을 늘리기 전이라 지울 면적도 작다(scanshelf-vision process_source와 같은 순서, docs/vision.md).
 //! 모델이 없으면 곡면 보정은 건너뛰고 인페인팅은 종이 색 채우기로 바뀐다(docs/models.md)
 //!
 //! @see docs/pipeline.md
 
 use image::RgbImage;
-use leaf_core::processing::{Dewarp, Filter, PagePart, ProcessOptions};
-use leaf_core::{PageLayout, Quad};
-use leaf_vision::Models;
-use leaf_vision::perspective::{self, Corners, Interpolation};
+use scanshelf_core::processing::{Dewarp, Filter, PagePart, ProcessOptions};
+use scanshelf_core::{PageLayout, Quad};
+use scanshelf_vision::Models;
+use scanshelf_vision::perspective::{self, Corners, Interpolation};
 
 /// 출력 페이지 긴 변 상한. A4를 약 340dpi로 담는 크기다. 4800만 화소 원본을 그대로 두면 PDF가 너무 커지고 OCR도 느려진다
 pub const MAX_OUTPUT_SIDE: u32 = 4000;
@@ -46,7 +46,7 @@ pub fn correct_page(input: CorrectInput<'_>) -> Result<Vec<(PagePart, RgbImage)>
     Ok(outputs)
 }
 
-/// 1단계: 원근 보정(leaf-vision perspective). 꼭짓점이 없으면 사진 전체를 크기만 맞춰 쓴다
+/// 1단계: 원근 보정(scanshelf-vision perspective). 꼭짓점이 없으면 사진 전체를 크기만 맞춰 쓴다
 pub fn perspective_step(image: RgbImage, quad: Option<Quad>) -> Result<RgbImage, String> {
     let Some(quad) = quad.filter(|q| !is_full_frame(q)) else {
         return Ok(limit_size(image));
@@ -64,15 +64,15 @@ pub fn split_step(image: RgbImage, layout: PageLayout) -> Vec<(PagePart, RgbImag
     match layout {
         PageLayout::Single => vec![(PagePart::Whole, image)],
         // 왼쪽부터 Panel(0), Panel(1), Panel(2). 출력 id는 -P1~-P3(docs/document-format.md)
-        PageLayout::Trifold => match leaf_vision::split_trifold(&image) {
-            leaf_vision::Trifold::Panels { panels, .. } => {
+        PageLayout::Trifold => match scanshelf_vision::split_trifold(&image) {
+            scanshelf_vision::Trifold::Panels { panels, .. } => {
                 (0u8..).zip(panels).map(|(index, panel)| (PagePart::Panel(index), panel)).collect()
             }
-            leaf_vision::Trifold::Whole { .. } => vec![(PagePart::Whole, image)],
+            scanshelf_vision::Trifold::Whole { .. } => vec![(PagePart::Whole, image)],
         },
-        PageLayout::Spread => match leaf_vision::split_spread(&image) {
-            leaf_vision::Split::Spread { left, right, .. } => vec![(PagePart::Left, left), (PagePart::Right, right)],
-            leaf_vision::Split::Single { .. } => vec![(PagePart::Whole, image)],
+        PageLayout::Spread => match scanshelf_vision::split_spread(&image) {
+            scanshelf_vision::Split::Spread { left, right, .. } => vec![(PagePart::Left, left), (PagePart::Right, right)],
+            scanshelf_vision::Split::Single { .. } => vec![(PagePart::Whole, image)],
         },
     }
 }
@@ -82,22 +82,22 @@ pub fn dewarp_step(image: RgbImage, mode: Dewarp, models: &Models) -> Result<Rgb
     if mode == Dewarp::Off {
         return Ok(image);
     }
-    leaf_vision::dewarp(&image, mode, models).map(|r| r.image).map_err(|e| e.to_string())
+    scanshelf_vision::dewarp(&image, mode, models).map(|r| r.image).map_err(|e| e.to_string())
 }
 
 /// 2단계: 손가락 지우기
 pub fn remove_fingers_step(image: RgbImage, models: &Models) -> Result<RgbImage, String> {
-    leaf_vision::remove_fingers(&image, None, models).map(|(out, _)| out).map_err(|e| e.to_string())
+    scanshelf_vision::remove_fingers(&image, None, models).map(|(out, _)| out).map_err(|e| e.to_string())
 }
 
 /// 5단계: 색 펜 필기 지우기(파랑, 빨강, 초록). 연필과 검은 펜은 남는다(docs/vision.md)
 pub fn remove_handwriting_step(image: RgbImage, models: &Models) -> Result<RgbImage, String> {
-    leaf_vision::remove_handwriting(&image, models).map(|(out, _)| out).map_err(|e| e.to_string())
+    scanshelf_vision::remove_handwriting(&image, models).map(|(out, _)| out).map_err(|e| e.to_string())
 }
 
 /// 6단계: 조명 보정과 필터. 흑백 필터가 인페인팅보다 먼저 오면 지운 자국이 도드라져 맨 끝에 둔다
 pub fn filter_step(image: RgbImage, filter: Filter) -> RgbImage {
-    leaf_vision::apply_filter(&image, filter)
+    scanshelf_vision::apply_filter(&image, filter)
 }
 
 fn is_full_frame(quad: &Quad) -> bool {
@@ -133,7 +133,7 @@ fn limit_size(image: RgbImage) -> RgbImage {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use leaf_core::Point;
+    use scanshelf_core::Point;
 
     fn quad(points: [(f64, f64); 4]) -> Quad {
         let p = |(x, y): (f64, f64)| Point { x, y };

@@ -11,12 +11,12 @@ mod share_macos;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use leaf_core::ocr::OcrPage;
+use scanshelf_core::ocr::OcrPage;
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
 use tauri_plugin_dialog::DialogExt;
 
-use leaf_core::fsio::write_atomic;
+use scanshelf_core::fsio::write_atomic;
 
 use crate::library::{document_dir, load_applied, load_processing, read_json};
 
@@ -43,7 +43,7 @@ pub fn safe_file_name(name: &str) -> String {
         .map(|c| if matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|') || c.is_control() { '_' } else { c })
         .collect();
     let cleaned = cleaned.trim_start_matches('.').to_string();
-    if cleaned.is_empty() { "leaf".to_string() } else { cleaned }
+    if cleaned.is_empty() { "scanshelf".to_string() } else { cleaned }
 }
 
 /// 처리된 페이지를 문서 순서대로. 처리 전 문서면 비어 있다
@@ -244,7 +244,7 @@ mod tests {
     fn 파일_이름에_못_쓰는_글자를_바꾼다() {
         assert_eq!(safe_file_name("2026 박람회/한빛:로보틱스"), "2026 박람회_한빛_로보틱스");
         assert_eq!(safe_file_name("..숨김"), "숨김");
-        assert_eq!(safe_file_name("  "), "leaf");
+        assert_eq!(safe_file_name("  "), "scanshelf");
     }
 
     #[test]

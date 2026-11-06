@@ -4,9 +4,9 @@ import { api } from "../api";
 import type { DocumentTags } from "../types";
 import { TagNode, UNTAGGED } from "../tags";
 
-const COLLAPSED_KEY = "leaf.tagTreeCollapsed";
+const COLLAPSED_KEY = "scanshelf.tagTreeCollapsed";
 /** 보관함에서 고른 태그. 다음 실행에도 기억하고, ⌘J 질문 창이 처음 범위로 쓴다 */
-export const TAG_FILTER_KEY = "leaf.tagFilter";
+export const TAG_FILTER_KEY = "scanshelf.tagFilter";
 
 /** 보관함 모든 문서의 태그(문서 id별). 태그가 바뀌면(tags-changed) 다시 읽는다 */
 export function useDocumentTags(revision?: unknown): Record<string, DocumentTags> {

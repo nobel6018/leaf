@@ -121,7 +121,7 @@ export function useAppUpdate() {
     try {
       await relaunch();
     } catch (e) {
-      setError(`설치는 끝났습니다. leaf를 끄고 다시 켜 주세요(${e})`);
+      setError(`설치는 끝났습니다. scanshelf를 끄고 다시 켜 주세요(${e})`);
     }
   }, [state.kind]);
 

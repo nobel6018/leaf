@@ -8,19 +8,19 @@
 cd ios
 xcodegen generate
 export DEVELOPER_DIR=/Applications/Xcode-27.1.0.app/Contents/Developer
-xcodebuild test -project Leaf.xcodeproj -scheme Leaf \
+xcodebuild test -project Scanshelf.xcodeproj -scheme Scanshelf \
   -destination 'platform=iOS Simulator,name=iPhone 18 Pro' \
   -derivedDataPath build CODE_SIGNING_ALLOWED=NO
 ```
 
-- `Leaf.xcodeproj`는 `project.yml`에서 만들어지므로 커밋하지 않습니다
-- 타깃은 앱(`Leaf`), 제어 센터 확장(`LeafControls`, 앱 안 `PlugIns/`로 들어감), 테스트(`LeafTests`)입니다. `Shared/`는 앱과 확장이 함께 컴파일합니다
+- `Scanshelf.xcodeproj`는 `project.yml`에서 만들어지므로 커밋하지 않습니다
+- 타깃은 앱(`Scanshelf`), 제어 센터 확장(`ScanshelfControls`, 앱 안 `PlugIns/`로 들어감), 테스트(`ScanshelfTests`)입니다. `Shared/`는 앱과 확장이 함께 컴파일합니다
 - `xcode-select -p`가 CommandLineTools이면 `DEVELOPER_DIR`를 줘야 합니다
 - 최소 iOS 18, Swift 6(엄격한 동시성 검사)
 
 ## 앱 아이콘
 
-`ios/Leaf/Assets.xcassets/AppIcon.appiconset`에 1024 정사각형 한 장을 둡니다. 원본은 `design/logo-ios-1024.png`이고, 로고를 바꾸면 이 파일도 같이 바꿉니다. 둥근 모서리와 투명도는 없어야 합니다. 빠져도 빌드는 성공하므로 release.yml이 `Assets.car`와 `CFBundleIcons`를 검사합니다.
+`ios/Scanshelf/Assets.xcassets/AppIcon.appiconset`에 1024 정사각형 한 장을 둡니다. 원본은 `design/logo-ios-1024.png`이고, 로고를 바꾸면 이 파일도 같이 바꿉니다. 둥근 모서리와 투명도는 없어야 합니다. 빠져도 빌드는 성공하므로 release.yml이 `Assets.car`와 `CFBundleIcons`를 검사합니다.
 
 ## 설치
 
@@ -65,7 +65,7 @@ AltStore로 본인 기기에만 설치합니다. 빌드는 서명 없이 하고 
 
 ## 보내기
 
-docs/transfer.md를 따릅니다. 코드는 `ios/Leaf/Transfer/`, 흐름은 `App/AppModel.swift`.
+docs/transfer.md를 따릅니다. 코드는 `ios/Scanshelf/Transfer/`, 흐름은 `App/AppModel.swift`.
 
 | 경로 | 언제 | 확인 |
 |---|---|---|
@@ -77,7 +77,7 @@ docs/transfer.md를 따릅니다. 코드는 `ios/Leaf/Transfer/`, 흐름은 `App
 - 서명 경로는 보낼 URL에서 꺼낸 퍼센트 인코딩된 경로 그대로입니다. 경로에는 UUID와 `raw/<uuid>.heic`만 들어가 인코딩할 글자가 없습니다
 - 짝짓기 오류는 코드 틀림(401 `wrong_code`, 다시 넣으면 됨)과 창 닫힘(403 `pairing_closed`, Mac에서 새 코드)을 다르게 안내합니다
 - Bonjour TXT `api`가 1이 아닌 Mac은 목록에 보이지 않습니다. 주소는 IPv4로 풉니다(Mac 서버가 IPv4만 엽니다)
-- iCloud 폴더는 고른 폴더에서 `leaf` 루트를 찾습니다. `leaf` 안의 폴더를 골라도 위로 올라가고, iCloud Drive 자체를 고르면 그 안의 `leaf`를 씁니다. iCloud Drive 밖은 거절합니다(`ICloudFolderLayout.leafRoot`)
+- iCloud 폴더는 고른 폴더에서 `scanshelf` 루트를 찾습니다. `scanshelf` 안의 폴더를 골라도 위로 올라가고, iCloud Drive 자체를 고르면 그 안의 `scanshelf`를 씁니다. iCloud Drive 밖은 거절합니다(`ICloudFolderLayout.scanshelfRoot`)
 
 ### 알려진 한계
 
@@ -94,10 +94,10 @@ docs/transfer.md를 따릅니다. 코드는 `ios/Leaf/Transfer/`, 흐름은 `App
 
 | 코드 | 내용 |
 |---|---|
-| `Shared/StartScanIntent.swift` | `StartScanIntent`(`openAppWhenRun`), 종류 `ScanKindOption`. 앱과 확장이 함께 컴파일하고 확장에서는 `LEAF_CONTROLS` 조건으로 앱 코드 호출을 뺀다 |
-| `Leaf/Intents/LeafShortcuts.swift` | App Shortcut("leaf 스캔 시작", "leaf로 책 스캔" 등). 단축어를 만들지 않아도 목록에 보인다 |
-| `Leaf/App/ScanLauncher.swift` | 인텐트가 남긴 요청과 시작 값(`ScanStartPlan`). 앱이 꺼져 있다 켜지면 요청이 화면보다 먼저 와서, 문서 목록이 나타날 때 가져간다 |
-| `LeafControls/LeafControls.swift` | 제어 센터, 잠금 화면 컨트롤(iOS 18 `ControlWidget`) |
+| `Shared/StartScanIntent.swift` | `StartScanIntent`(`openAppWhenRun`), 종류 `ScanKindOption`. 앱과 확장이 함께 컴파일하고 확장에서는 `SCANSHELF_CONTROLS` 조건으로 앱 코드 호출을 뺀다 |
+| `Scanshelf/Intents/ScanshelfShortcuts.swift` | App Shortcut("scanshelf 스캔 시작", "scanshelf로 책 스캔" 등). 단축어를 만들지 않아도 목록에 보인다 |
+| `Scanshelf/App/ScanLauncher.swift` | 인텐트가 남긴 요청과 시작 값(`ScanStartPlan`). 앱이 꺼져 있다 켜지면 요청이 화면보다 먼저 와서, 문서 목록이 나타날 때 가져간다 |
+| `ScanshelfControls/ScanshelfControls.swift` | 제어 센터, 잠금 화면 컨트롤(iOS 18 `ControlWidget`) |
 
 이미 촬영 화면이 떠 있으면 요청을 버리고 그 화면을 둡니다. 새 문서나 설정 시트가 떠 있으면 내린 뒤 촬영 화면을 엽니다.
 
@@ -106,8 +106,8 @@ docs/transfer.md를 따릅니다. 코드는 `ios/Leaf/Transfer/`, 흐름은 `App
 | 쓰는 곳 | 무료 Apple ID | 비고 |
 |---|---|---|
 | 단축어 앱, Spotlight, Siri 문구 | 됨 | App Intents는 entitlement가 필요 없다. Siri 문구는 App Shortcut이라 SiriKit 권한이 필요 없다 |
-| 동작 버튼(iPhone 15 Pro 이상) | 됨 | 설정 > 동작 버튼 > 단축어 > leaf "스캔 시작", 또는 제어 > leaf 스캔 시작 |
-| 제어 센터, 잠금 화면 컨트롤 | 될 것으로 봄(실기기 미확인) | 위젯 확장이라 entitlement는 없지만 App ID를 하나 더 쓴다. 무료 Apple ID는 7일에 App ID 10개까지라 leaf가 2개를 쓴다. 앱 그룹은 쓰지 않는다(확장은 버튼만 그리고 실행은 앱에서 한다) |
+| 동작 버튼(iPhone 15 Pro 이상) | 됨 | 설정 > 동작 버튼 > 단축어 > scanshelf "스캔 시작", 또는 제어 > scanshelf 스캔 시작 |
+| 제어 센터, 잠금 화면 컨트롤 | 될 것으로 봄(실기기 미확인) | 위젯 확장이라 entitlement는 없지만 App ID를 하나 더 쓴다. 무료 Apple ID는 7일에 App ID 10개까지라 scanshelf가 2개를 쓴다. 앱 그룹은 쓰지 않는다(확장은 버튼만 그리고 실행은 앱에서 한다) |
 | 앱을 열지 않고 백그라운드에서 촬영 | 안 됨 | 카메라는 앱이 앞에 있어야 한다. 그래서 늘 앱을 연다 |
 | 위젯(홈 화면) | 만들지 않음 | |
 
@@ -115,12 +115,12 @@ docs/transfer.md를 따릅니다. 코드는 `ios/Leaf/Transfer/`, 흐름은 `App
 
 ## 업데이트 알림
 
-앱이 앞으로 올 때 하루에 한 번 GitHub `releases/latest`를 묻고, `leaf-ios.ipa`가 붙은 더 새 버전이면 문서 목록 위에 "새 버전 x.y.z"를 띄웁니다(`App/UpdateCheck.swift`, `AppModel.checkForUpdate`).
+앱이 앞으로 올 때 하루에 한 번 GitHub `releases/latest`를 묻고, `scanshelf-ios.ipa`가 붙은 더 새 버전이면 문서 목록 위에 "새 버전 x.y.z"를 띄웁니다(`App/UpdateCheck.swift`, `AppModel.checkForUpdate`).
 
 - 버전 비교는 점으로 나눈 숫자를 앞에서부터 봅니다(0.10.0 > 0.9.1). 앞의 `v`와 뒤표(`-beta.1`)는 무시합니다(`UpdateCheck.isNewer`, `UpdateCheckTests`)
 - 확인 결과는 저장해 두어 묻지 않는 날에도 알림이 남습니다. 닫으면 그 버전은 다시 알리지 않고, 더 새 버전이 나오면 다시 알립니다
 - GitHub에 묻지 못하면 기록하지 않고 다음에 앞으로 올 때 다시 묻습니다. 로그인 없이 IP당 시간당 60번까지라 하루 한 번이면 넉넉합니다
-- "업데이트"는 `altstore://source?url=<apps.json 주소>`로 AltStore의 leaf 소스를 엽니다. AltStore가 주소를 받지 않으면 Release 페이지를 엽니다. 설치는 AltStore의 Update 버튼으로 합니다(사이드로딩 앱은 스스로 설치하지 못한다)
+- "업데이트"는 `altstore://source?url=<apps.json 주소>`로 AltStore의 scanshelf 소스를 엽니다. AltStore가 주소를 받지 않으면 Release 페이지를 엽니다. 설치는 AltStore의 Update 버튼으로 합니다(사이드로딩 앱은 스스로 설치하지 못한다)
 - 단위 테스트가 앱을 띄울 때는 묻지 않습니다
 
 ## 시뮬레이터에서 화면 보기
@@ -128,11 +128,11 @@ docs/transfer.md를 따릅니다. 코드는 `ios/Leaf/Transfer/`, 흐름은 `App
 카메라 대신 합성 화면이 나옵니다(docs/capture.md "시뮬레이터"). DEBUG 빌드는 실행 인자로 화면을 바로 엽니다.
 
 ```bash
-xcrun simctl launch <udid> com.nobel6018.leaf -leafScreen capture   # 촬영(세션 "2026 예시박람회" 문서를 만든다)
-xcrun simctl launch <udid> com.nobel6018.leaf -leafScreen new       # 새 문서
-xcrun simctl launch <udid> com.nobel6018.leaf -leafScreen settings  # 설정
-xcrun simctl launch <udid> com.nobel6018.leaf -leafScreen scan -leafScanKind book  # "스캔 시작" 동작과 같은 길
-xcrun simctl launch <udid> com.nobel6018.leaf -leafScreen update    # 가짜 새 버전 알림(9.9.9)
+xcrun simctl launch <udid> com.nobel6018.scanshelf -scanshelfScreen capture   # 촬영(세션 "2026 예시박람회" 문서를 만든다)
+xcrun simctl launch <udid> com.nobel6018.scanshelf -scanshelfScreen new       # 새 문서
+xcrun simctl launch <udid> com.nobel6018.scanshelf -scanshelfScreen settings  # 설정
+xcrun simctl launch <udid> com.nobel6018.scanshelf -scanshelfScreen scan -scanshelfScanKind book  # "스캔 시작" 동작과 같은 길
+xcrun simctl launch <udid> com.nobel6018.scanshelf -scanshelfScreen update    # 가짜 새 버전 알림(9.9.9)
 xcrun simctl io <udid> screenshot --display=1 shot.png
 ```
 
@@ -143,6 +143,6 @@ xcrun simctl io <udid> screenshot --display=1 shot.png
 - 볼륨 버튼과 블루투스 리모컨 셔터
 - 로컬 네트워크 권한, Bonjour 찾기, Mac 서버와의 실제 전송
 - 키체인(무료 Apple ID 서명에서), iCloud 폴더 선택과 보안 범위 북마크
-- 동작 버튼, 제어 센터, 잠금 화면 컨트롤에서 "스캔 시작"이 앱을 열고 촬영 화면으로 들어가는지. 시뮬레이터에서는 `-leafScreen scan`으로 같은 화면 흐름만 확인했다
-- `altstore://source?url=` 주소를 AltStore가 받아 leaf 소스를 여는지. 받지 않으면 Release 페이지로 간다
+- 동작 버튼, 제어 센터, 잠금 화면 컨트롤에서 "스캔 시작"이 앱을 열고 촬영 화면으로 들어가는지. 시뮬레이터에서는 `-scanshelfScreen scan`으로 같은 화면 흐름만 확인했다
+- `altstore://source?url=` 주소를 AltStore가 받아 scanshelf 소스를 여는지. 받지 않으면 Release 페이지로 간다
 - 펼친 3단 접지를 거치대에서 찍을 때 Vision 문서 감지가 가로로 긴 종이 전체를 잡는지

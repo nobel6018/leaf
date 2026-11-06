@@ -16,8 +16,8 @@ use axum::routing::{get, post, put};
 use axum::{Json, Router};
 use chrono::Utc;
 use futures_util::StreamExt;
-use leaf_core::transfer::{MAX_CLOCK_SKEW_SECONDS, sha256_hex, verify};
-use leaf_core::{Manifest, ManifestError};
+use scanshelf_core::transfer::{MAX_CLOCK_SKEW_SECONDS, sha256_hex, verify};
+use scanshelf_core::{Manifest, ManifestError};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -35,10 +35,10 @@ pub const MAX_FILE_BYTES: u64 = 200 * 1024 * 1024;
 pub const MAX_MANIFEST_BYTES: usize = 1024 * 1024;
 const MAX_DEVICE_NAME_CHARS: usize = 100;
 
-pub const HEADER_DEVICE: &str = "x-leaf-device";
-pub const HEADER_TIMESTAMP: &str = "x-leaf-timestamp";
-pub const HEADER_BODY_SHA256: &str = "x-leaf-body-sha256";
-pub const HEADER_SIGNATURE: &str = "x-leaf-signature";
+pub const HEADER_DEVICE: &str = "x-scanshelf-device";
+pub const HEADER_TIMESTAMP: &str = "x-scanshelf-timestamp";
+pub const HEADER_BODY_SHA256: &str = "x-scanshelf-body-sha256";
+pub const HEADER_SIGNATURE: &str = "x-scanshelf-signature";
 
 /// 서버가 화면 쪽에 알리는 일. 앱은 Tauri 이벤트로, 테스트는 기록으로 받는다
 pub trait TransferEvents: Send + Sync {

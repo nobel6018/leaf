@@ -4,7 +4,7 @@ Mac 앱은 앱 안에서 새 버전을 받아 설치하고, iPhone 앱은 AltSto
 
 ## Mac 동작
 
-1. 앱을 켜면 `releases/latest/download/latest.json`을 읽어 새 버전이 있는지 확인합니다. 손으로 확인하려면 메뉴 leaf > "업데이트 확인하기…"를 누릅니다
+1. 앱을 켜면 `releases/latest/download/latest.json`을 읽어 새 버전이 있는지 확인합니다. 손으로 확인하려면 메뉴 scanshelf > "업데이트 확인하기…"를 누릅니다
 2. 새 버전이 있으면 화면 위에 알림과 "업데이트하고 다시 켜기" 버튼이 뜹니다. 저절로 설치하거나 다시 켜지 않습니다
 3. 버튼을 누르면 진행 중인 작업을 확인합니다. 하나라도 있으면 설치하지 않고 무엇이 진행 중인지 알립니다
 4. 없으면 받고, 설치 직전에 한 번 더 확인한 뒤 설치하고 다시 켭니다
@@ -35,10 +35,10 @@ let _busy = busy::start(format!("처리: {}", manifest.name));
 
 ## 서명
 
-업데이트 파일은 Tauri updater 서명(minisign)으로 확인합니다. Apple 개발자 계정이 필요 없습니다. 비밀 키는 이 Mac의 `~/.tauri/leaf-updater.key`와 GitHub secret `TAURI_SIGNING_PRIVATE_KEY`에만 있습니다.
+업데이트 파일은 Tauri updater 서명(minisign)으로 확인합니다. Apple 개발자 계정이 필요 없습니다. 비밀 키는 이 Mac의 `~/.tauri/scanshelf-updater.key`와 GitHub secret `TAURI_SIGNING_PRIVATE_KEY`에만 있습니다.
 
 로컬에서 설치 파일을 만들 때:
 
 ```sh
-TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/leaf-updater.key)" TAURI_SIGNING_PRIVATE_KEY_PASSWORD="" pnpm tauri build
+TAURI_SIGNING_PRIVATE_KEY="$(cat ~/.tauri/scanshelf-updater.key)" TAURI_SIGNING_PRIVATE_KEY_PASSWORD="" pnpm tauri build
 ```

@@ -1,4 +1,4 @@
-//! iCloud 폴더 받기(보조 경로). iPhone이 `iCloud Drive/leaf/inbox/<문서 id>/`에 원본을 먼저, manifest를
+//! iCloud 폴더 받기(보조 경로). iPhone이 `iCloud Drive/scanshelf/inbox/<문서 id>/`에 원본을 먼저, manifest를
 //! 마지막에 복사하면, Mac은 manifest가 있고 원본이 모두 받아진 문서를 보관함으로 가져온 뒤 inbox에서 지운다.
 //!
 //! 폴더 감시는 5초 간격 훑기로 한다. iCloud 동기화 자체가 수 초 걸리고, 파일 이벤트는 iCloud가 자리표시를
@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use leaf_core::{MANIFEST_FILE, Manifest};
+use scanshelf_core::{MANIFEST_FILE, Manifest};
 use serde::Serialize;
 use uuid::Uuid;
 
@@ -183,17 +183,26 @@ pub fn icloud_inbox_status(state: tauri::State<'_, InboxState>) -> InboxStatus {
     }
 }
 
-/// `~/Library/Mobile Documents/com~apple~CloudDocs/leaf/inbox`. iCloud Drive가 꺼져 있으면 None
+/// `~/Library/Mobile Documents/com~apple~CloudDocs/scanshelf/inbox`. iCloud Drive가 꺼져 있으면 None
 #[cfg(target_os = "macos")]
 pub fn icloud_inbox_dir() -> Option<PathBuf> {
     let home = std::env::var_os("HOME")?;
     let drive = PathBuf::from(home).join("Library/Mobile Documents/com~apple~CloudDocs");
-    drive.is_dir().then(|| drive.join("leaf").join("inbox"))
+    drive.is_dir().then(|| drive.join("scanshelf").join("inbox"))
 }
 
 #[cfg(not(target_os = "macos"))]
 pub fn icloud_inbox_dir() -> Option<PathBuf> {
     None
+}
+
+/// 이름을 바꾸기 전 iPhone 앱이 쓰던 `iCloud Drive/leaf/inbox`. 이미 올려 둔 문서를 잃지 않도록 있으면 같이 훑는다.
+/// 새로 만들지는 않는다
+#[cfg(target_os = "macos")]
+fn legacy_inbox_dir() -> Option<PathBuf> {
+    let home = std::env::var_os("HOME")?;
+    let dir = PathBuf::from(home).join("Library/Mobile Documents/com~apple~CloudDocs/leaf/inbox");
+    dir.is_dir().then_some(dir)
 }
 
 /// 같은 파일에 내려받기를 너무 자주 요청하지 않는다. 큰 사진은 받는 데 수십 초가 걸린다
@@ -244,17 +253,21 @@ pub fn setup(app: &tauri::AppHandle, store: Arc<Store>) {
             let mut request = download_requester();
             let mut reported: HashSet<(Uuid, String)> = HashSet::new();
             loop {
-                let scan = scan_inbox(&inbox, &store, &mut request);
-                pending.store(scan.pending, Ordering::SeqCst);
-                for id in scan.imported {
-                    crate::transfer::emit_library_changed(&app, id);
-                }
-                for failure in scan.failed {
-                    if !reported.contains(&failure) {
-                        eprintln!("iCloud inbox 문서를 가져오지 못했다 ({}): {}", failure.0, failure.1);
-                        reported.insert(failure);
+                let mut waiting = 0;
+                for dir in std::iter::once(inbox.clone()).chain(legacy_inbox_dir()) {
+                    let scan = scan_inbox(&dir, &store, &mut request);
+                    waiting += scan.pending;
+                    for id in scan.imported {
+                        crate::transfer::emit_library_changed(&app, id);
+                    }
+                    for failure in scan.failed {
+                        if !reported.contains(&failure) {
+                            eprintln!("iCloud inbox 문서를 가져오지 못했다 ({}): {}", failure.0, failure.1);
+                            reported.insert(failure);
+                        }
                     }
                 }
+                pending.store(waiting, Ordering::SeqCst);
                 std::thread::sleep(std::time::Duration::from_secs(5));
             }
         });

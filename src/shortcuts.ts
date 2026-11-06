@@ -121,7 +121,7 @@ export function runRegistered(command: CommandName): boolean {
   return true;
 }
 
-const EVENT = "leaf:command";
+const EVENT = "scanshelf:command";
 
 /** 단축키 말고 버튼이나 다른 화면에서 명령을 보낼 때. App.tsx가 받아 단축키와 같은 길로 처리한다 */
 export function sendCommand(command: CommandName) {

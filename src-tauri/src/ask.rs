@@ -1,6 +1,6 @@
 //! 문서에 질문하기. 문서 화면의 "질문" 탭은 그 문서에, ⌘J 창은 모든 문서(태그, 묶음으로 좁힘)에 묻는다.
 //!
-//! 사람이 질문을 보낼 때만 구독 CLI로 보낸다(도구를 끈 `claude -p`, leaf_ai::cli). 문서 글자는 매번 바뀌는 태그로 감싸
+//! 사람이 질문을 보낼 때만 구독 CLI로 보낸다(도구를 끈 `claude -p`, scanshelf_ai::cli). 문서 글자는 매번 바뀌는 태그로 감싸
 //! 인쇄물 글자에 섞인 지시가 태그를 닫거나 명령으로 읽히지 않게 한다.
 //! 답에는 근거 페이지를 `[p.12]`(문서 하나) 또는 `[D3 p.12]`(모든 문서)로 달게 하고, D3이 어느 문서인지는 `sources`로 돌려준다.
 //!
@@ -9,10 +9,10 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-use leaf_ai::LlmConfig;
-use leaf_ai::document::LoadedDocument;
-use leaf_core::DocumentKind;
-use leaf_core::summary::PamphletSummary;
+use scanshelf_ai::LlmConfig;
+use scanshelf_ai::document::LoadedDocument;
+use scanshelf_core::DocumentKind;
+use scanshelf_core::summary::PamphletSummary;
 use serde::Serialize;
 
 use crate::library::{document_dir, library_dir, load_edits};
@@ -287,7 +287,7 @@ fn hit_count(text: &str, words: &[String]) -> usize {
 }
 
 /// 페이지의 글 덩어리. OCR 블록이 있으면 블록, 없으면 빈 줄로 나눈 단락
-fn passages_of(ocr: &leaf_core::ocr::OcrPage) -> Vec<String> {
+fn passages_of(ocr: &scanshelf_core::ocr::OcrPage) -> Vec<String> {
     let blocks: Vec<String> = ocr.blocks.iter().map(|b| b.text.trim().to_string()).filter(|t| !t.is_empty()).collect();
     if !blocks.is_empty() {
         return blocks;
@@ -338,7 +338,7 @@ pub fn document_dirs(library: &Path) -> Vec<PathBuf> {
     entries
         .flatten()
         .map(|e| e.path())
-        .filter(|p| p.join(leaf_core::MANIFEST_FILE).exists())
+        .filter(|p| p.join(scanshelf_core::MANIFEST_FILE).exists())
         .collect()
 }
 
@@ -347,7 +347,7 @@ pub fn load_scope(library: &Path, tag: Option<&str>, session: Option<&str>) -> V
     let mut docs: Vec<AskDocument> = document_dirs(library)
         .iter()
         .filter_map(|dir| AskDocument::load(dir).ok())
-        .filter(|d| tag.is_none_or(|t| leaf_core::tags::matches(&d.tags, t)))
+        .filter(|d| tag.is_none_or(|t| scanshelf_core::tags::matches(&d.tags, t)))
         .filter(|d| session.is_none_or(|s| d.doc.manifest.session.as_deref().map(str::trim) == Some(s.trim())))
         .collect();
     docs.sort_by_key(|d| std::cmp::Reverse(d.doc.manifest.created_at));
@@ -360,7 +360,7 @@ pub fn ask_document_dir(dir: &Path, question: &str, llm: &LlmConfig) -> Result<A
         return Err("이 문서에는 아직 읽은 글자가 없어 물어볼 수 없습니다".into());
     }
     let prompt = single_prompt(question, &d);
-    let markdown = leaf_ai::cli::run_prompt(llm, &prompt).map_err(|e| e.to_string())?;
+    let markdown = scanshelf_ai::cli::run_prompt(llm, &prompt).map_err(|e| e.to_string())?;
     Ok(Answer { markdown, sources: vec![d.source("D1".into())] })
 }
 
@@ -376,7 +376,7 @@ pub fn ask_library_dir(
     if sources.is_empty() {
         return Err("물어볼 문서가 없습니다. 처리가 끝나 글자를 읽은 문서에만 물을 수 있습니다".into());
     }
-    let markdown = leaf_ai::cli::run_prompt(llm, &prompt).map_err(|e| e.to_string())?;
+    let markdown = scanshelf_ai::cli::run_prompt(llm, &prompt).map_err(|e| e.to_string())?;
     Ok(Answer { markdown, sources })
 }
 
@@ -433,9 +433,9 @@ pub(crate) mod testkit {
     use std::path::{Path, PathBuf};
 
     use chrono::{DateTime, TimeZone, Utc};
-    use leaf_core::ocr::{BlockKind, OcrBlock, OcrPage, Rect};
-    use leaf_core::processing::{OutputPage, PIPELINE_VERSION, PagePart, ProcessOptions, Processing};
-    use leaf_core::{DocumentKind, Manifest, Page, PageLayout, SCHEMA_VERSION};
+    use scanshelf_core::ocr::{BlockKind, OcrBlock, OcrPage, Rect};
+    use scanshelf_core::processing::{OutputPage, PIPELINE_VERSION, PagePart, ProcessOptions, Processing};
+    use scanshelf_core::{DocumentKind, Manifest, Page, PageLayout, SCHEMA_VERSION};
     use uuid::Uuid;
 
     pub fn at(day: u32, hour: u32) -> DateTime<Utc> {
@@ -529,8 +529,8 @@ pub(crate) mod testkit {
             Self { dir, program }
         }
 
-        pub fn llm(&self) -> leaf_ai::LlmConfig {
-            leaf_ai::LlmConfig::with_program(&self.program)
+        pub fn llm(&self) -> scanshelf_ai::LlmConfig {
+            scanshelf_ai::LlmConfig::with_program(&self.program)
         }
 
         pub fn calls(&self) -> usize {
@@ -551,7 +551,7 @@ pub(crate) mod testkit {
 mod tests {
     use super::testkit::*;
     use super::*;
-    use leaf_core::overrides::Edits;
+    use scanshelf_core::overrides::Edits;
 
     #[test]
     fn 조사를_뗀_낱말도_찾는다() {

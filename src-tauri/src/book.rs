@@ -11,9 +11,9 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use leaf_core::ocr::OcrPage;
-use leaf_core::overrides::Edits;
-use leaf_core::processing::PagePart;
+use scanshelf_core::ocr::OcrPage;
+use scanshelf_core::overrides::Edits;
+use scanshelf_core::processing::PagePart;
 use serde::Serialize;
 use uuid::Uuid;
 
@@ -841,7 +841,7 @@ fn reinsert_unprocessed(current: &[Uuid], planned: &[Uuid]) -> Vec<Uuid> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use leaf_core::ocr::{BlockKind, OcrBlock, OcrLine, Rect};
+    use scanshelf_core::ocr::{BlockKind, OcrBlock, OcrLine, Rect};
 
     /// 본문 한 줄과 가장자리 줄(y 위치)을 가진 합성 OCR 페이지
     fn ocr(edge: &[(&str, f64, f64)]) -> OcrPage {

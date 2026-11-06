@@ -5,9 +5,9 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use leaf_core::Manifest;
-use leaf_lib::inbox::scan_inbox;
-use leaf_lib::store::Store;
+use scanshelf_core::Manifest;
+use scanshelf_lib::inbox::scan_inbox;
+use scanshelf_lib::store::Store;
 
 fn fixture_manifest() -> Manifest {
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../fixtures/manifest-v1.json");

@@ -17,13 +17,13 @@ import {
 } from "./library.js";
 import { compact, findSpans, matchesWithInitials, snippet } from "./search.js";
 
-// leaf로 스캔한 문서를 MCP 클라이언트(Claude Code, Claude 데스크톱 등)에서 찾고 읽는다. 읽기만 하고 파일은 고치지 않는다
+// scanshelf로 스캔한 문서를 MCP 클라이언트(Claude Code, Claude 데스크톱 등)에서 찾고 읽는다. 읽기만 하고 파일은 고치지 않는다
 // @see ../../docs/mcp.md
 
 export const VERSION = "0.1.0";
 
 export const INSTRUCTIONS = [
-  "leaf는 사용자가 iPhone으로 찍고 Mac에서 처리한 스캔 문서(책, 문서, 박람회 팜플렛) 보관함입니다. 이 서버는 읽기만 합니다.",
+  "scanshelf는 사용자가 iPhone으로 찍고 Mac에서 처리한 스캔 문서(책, 문서, 박람회 팜플렛) 보관함입니다. 이 서버는 읽기만 합니다.",
   "찾을 때는 search_documents(이름, 묶음, 태그, OCR 본문, AI 정리)를 먼저 쓰고, 필요한 쪽만 get_document의 pages로 읽습니다.",
   "묶음(session)은 박람회처럼 함께 찍은 문서 모음이고, 태그는 `/` 계층(분야/냉각)이라 상위 태그로 거르면 하위도 들어갑니다.",
   "OCR이 놓친 표, 그림, 도면은 get_page_image로 페이지 그림을 봅니다.",
@@ -147,14 +147,14 @@ async function resolve(libraryDir: string, id: string): Promise<Resolved> {
 }
 
 export function createServer(libraryDir: string): McpServer {
-  const server = new McpServer({ name: "leaf", version: VERSION }, { instructions: INSTRUCTIONS });
+  const server = new McpServer({ name: "scanshelf", version: VERSION }, { instructions: INSTRUCTIONS });
 
   server.registerTool(
     "list_documents",
     {
-      title: "leaf 문서 목록",
+      title: "scanshelf 문서 목록",
       description:
-        "leaf 보관함의 스캔 문서를 최신순으로 보여 준다. 이름, id, 종류(팜플렛, 책, 문서), 묶음, 날짜, 쪽수, 처리 상태, 태그, AI 정리 여부를 돌려준다. " +
+        "scanshelf 보관함의 스캔 문서를 최신순으로 보여 준다. 이름, id, 종류(팜플렛, 책, 문서), 묶음, 날짜, 쪽수, 처리 상태, 태그, AI 정리 여부를 돌려준다. " +
         "종류, 묶음, 태그(상위 태그는 하위 포함), 날짜 범위, 팜플렛 관련성으로 거른다",
       inputSchema: {
         kind: z.enum(["pamphlet", "book", "document"]).optional().describe("종류. pamphlet 팜플렛, book 책, document 문서"),
@@ -188,7 +188,7 @@ export function createServer(libraryDir: string): McpServer {
   server.registerTool(
     "list_sessions",
     {
-      title: "leaf 묶음 목록",
+      title: "scanshelf 묶음 목록",
       description: "묶음(박람회처럼 함께 찍은 촬영 세션)마다 문서 수, 종류별 수, 가장 최근 날짜를 최근순으로 보여 준다",
       inputSchema: {},
       annotations: { readOnlyHint: true, openWorldHint: false },
@@ -222,7 +222,7 @@ export function createServer(libraryDir: string): McpServer {
   server.registerTool(
     "list_tags",
     {
-      title: "leaf 태그 목록",
+      title: "scanshelf 태그 목록",
       description: "태그마다 붙은 문서 수를 계층(분야, 분야/냉각)으로 보여 준다. 상위 태그 수는 하위 태그가 붙은 문서까지 센다",
       inputSchema: {},
       annotations: { readOnlyHint: true, openWorldHint: false },
@@ -251,7 +251,7 @@ export function createServer(libraryDir: string): McpServer {
   server.registerTool(
     "search_documents",
     {
-      title: "leaf 문서 검색",
+      title: "scanshelf 문서 검색",
       description:
         "문서 이름, 묶음, 태그, OCR 본문, 팜플렛 AI 정리에서 낱말을 찾는다. 띄어쓰기와 대소문자는 무시하고 부분 문자열로 찾는다(센터 → 데이터센터). " +
         "이름, 묶음, 태그는 초성으로도 찾는다(ㅎㅂㄹ → 한빛로보틱스). 문서마다 맞은 곳(쪽 번호와 앞뒤 조각, 맞은 글자는 «»)을 돌려준다. " +
@@ -326,7 +326,7 @@ export function createServer(libraryDir: string): McpServer {
   server.registerTool(
     "get_document",
     {
-      title: "leaf 문서 읽기",
+      title: "scanshelf 문서 읽기",
       description:
         "문서 하나의 정보(Mac에서 고친 이름, 종류, 묶음, 태그 반영), 팜플렛 AI 정리, 쪽마다의 OCR 본문을 문서 순서대로 돌려준다. " +
         '쪽은 [3쪽 시작] ... [3쪽 끝]으로 나눈다. 긴 책은 pages("12-20")로 일부만 읽고 max_chars로 길이를 줄인다. 잘렸으면 이어 읽을 pages를 알려 준다',
@@ -357,7 +357,7 @@ export function createServer(libraryDir: string): McpServer {
 
       if (withText) {
         if (!d.pages.length) {
-          lines.push("", "## 본문", "", "아직 처리하지 않아 본문이 없습니다. Mac leaf 앱에서 처리하면 생깁니다.");
+          lines.push("", "## 본문", "", "아직 처리하지 않아 본문이 없습니다. Mac scanshelf 앱에서 처리하면 생깁니다.");
           return text(lines.join("\n"));
         }
         const range = parseRange(pages, d.pages.length);
@@ -405,7 +405,7 @@ export function createServer(libraryDir: string): McpServer {
   server.registerTool(
     "get_page_image",
     {
-      title: "leaf 페이지 그림",
+      title: "scanshelf 페이지 그림",
       description:
         "처리된 페이지 그림(원근, 곡면 보정 뒤 JPEG)을 이미지로 돌려준다. OCR이 놓친 표, 그림, 도면, 손글씨를 볼 때 쓴다. " +
         "긴 변을 max_edge 픽셀로 줄인다. 쪽 번호는 get_document, search_documents와 같다",
@@ -429,7 +429,7 @@ export function createServer(libraryDir: string): McpServer {
       try {
         bytes = await readFile(path);
       } catch {
-        return fail(`${page}쪽 그림 파일이 없습니다. Mac leaf 앱에서 다시 처리해야 할 수 있습니다.`);
+        return fail(`${page}쪽 그림 파일이 없습니다. Mac scanshelf 앱에서 다시 처리해야 할 수 있습니다.`);
       }
       let fitted;
       try {

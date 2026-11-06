@@ -1,12 +1,12 @@
 [package]
-name = "leaf"
-version = "0.1.2"
-description = "leaf Mac 앱: iPhone에서 받은 스캔을 보정, OCR, AI 정리, 내보내기"
+name = "scanshelf"
+version = "0.2.0"
+description = "scanshelf Mac 앱: iPhone에서 받은 스캔을 보정, OCR, AI 정리, 내보내기"
 edition = "2024"
 publish = false
 
 [lib]
-name = "leaf_lib"
+name = "scanshelf_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -17,9 +17,9 @@ tauri = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-leaf-core = { path = "../crates/leaf-core" }
-leaf-vision = { path = "../crates/leaf-vision" }
-leaf-ai = { path = "../crates/leaf-ai" }
+scanshelf-core = { path = "../crates/scanshelf-core" }
+scanshelf-vision = { path = "../crates/scanshelf-vision" }
+scanshelf-ai = { path = "../crates/scanshelf-ai" }
 image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
 # 검색 색인. trigram 토크나이저가 들어간 SQLite를 같이 빌드한다(docs/search.md)
 rusqlite = { version = "0.41", features = ["bundled"] }
@@ -39,7 +39,7 @@ futures-util = "0.3"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 thiserror = "2"
-# 단축키, leaf:// 링크, 두 번째 실행 가로채기. 검증한 버전으로 고정한다(docs/shortcuts-and-deep-links.md)
+# 단축키, scanshelf:// 링크, 두 번째 실행 가로채기. 검증한 버전으로 고정한다(docs/shortcuts-and-deep-links.md)
 tauri-plugin-global-shortcut = "=2.4.1"
 tauri-plugin-deep-link = "=2.6.2"
 tauri-plugin-single-instance = { version = "=2.5.4", features = ["deep-link"] }

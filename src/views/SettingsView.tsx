@@ -96,7 +96,7 @@ export function SettingsView({ update, onError }: Props) {
         )}
         {pairing ? (
           <div className="pairing">
-            <p>iPhone leaf 앱 설정에서 이 코드를 넣으세요</p>
+            <p>iPhone scanshelf 앱 설정에서 이 코드를 넣으세요</p>
             <div className="pairing-code" aria-label="짝짓기 코드">
               {pairing.code}
             </div>
@@ -153,7 +153,7 @@ export function SettingsView({ update, onError }: Props) {
         <h3>앱 버전</h3>
         <div className="setting-row">
           <span>
-            leaf {version}
+            scanshelf {version}
             {update.state.kind !== "none" && <span className="hint"> {updateMessage(update)}</span>}
             <UpdateNotes update={update} />
           </span>

@@ -5,7 +5,7 @@
 use std::path::Path;
 
 use image::RgbImage;
-use leaf_core::{Point, Quad};
+use scanshelf_core::{Point, Quad};
 use objc2::AnyThread;
 use objc2::rc::autoreleasepool;
 use objc2::runtime::AnyObject;
@@ -115,7 +115,7 @@ pub fn detect_document_quad(image: &RgbImage) -> Option<Quad> {
         handler.performRequests_error(&requests).ok()?;
         let results = unsafe { request.results() }?;
         let best = results.iter().max_by(|a, b| unsafe { a.confidence().total_cmp(&b.confidence()) })?;
-        // Vision 좌표는 원점이 왼쪽 아래다. leaf 좌표(왼쪽 위)로 뒤집는다
+        // Vision 좌표는 원점이 왼쪽 아래다. scanshelf 좌표(왼쪽 위)로 뒤집는다
         let flip = |p: CGPoint| Point {
             x: p.x.clamp(0.0, 1.0),
             y: (1.0 - p.y).clamp(0.0, 1.0),

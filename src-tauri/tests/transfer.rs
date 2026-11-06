@@ -1,4 +1,4 @@
-//! Wi-Fi 전송 서버를 localhost에 띄우고, leaf_core::transfer로 서명한 요청을 보내 확인한다.
+//! Wi-Fi 전송 서버를 localhost에 띄우고, scanshelf_core::transfer로 서명한 요청을 보내 확인한다.
 //! 원본은 합성 바이트, manifest는 fixtures/manifest-v1.json만 쓴다.
 //!
 //! @see docs/transfer.md
@@ -8,12 +8,12 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use chrono::{Duration, Utc};
-use leaf_core::transfer::{sha256_hex, sign};
-use leaf_core::{Manifest, Page, PageLayout};
-use leaf_lib::store::Store;
-use leaf_lib::transfer::devices::{Devices, MemoryTokenStore, PairedDevice};
-use leaf_lib::transfer::pairing::Pairing;
-use leaf_lib::transfer::server::{
+use scanshelf_core::transfer::{sha256_hex, sign};
+use scanshelf_core::{Manifest, Page, PageLayout};
+use scanshelf_lib::store::Store;
+use scanshelf_lib::transfer::devices::{Devices, MemoryTokenStore, PairedDevice};
+use scanshelf_lib::transfer::pairing::Pairing;
+use scanshelf_lib::transfer::server::{
     HEADER_BODY_SHA256, HEADER_DEVICE, HEADER_SIGNATURE, HEADER_TIMESTAMP, TransferEvents, TransferService, serve,
 };
 use reqwest::{Method, StatusCode};
@@ -160,7 +160,7 @@ impl Harness {
 
 /// 테스트들이 한 프로세스의 busy 등록부를 같이 쓰므로 문서 id로 가려 본다
 fn busy_for(id: Uuid) -> bool {
-    leaf_lib::busy::current().iter().any(|t| t.contains(&id.to_string()))
+    scanshelf_lib::busy::current().iter().any(|t| t.contains(&id.to_string()))
 }
 
 #[tokio::test]
@@ -419,7 +419,7 @@ async fn 모르는_형식_버전은_받지_않는다() {
     let h = start().await;
     let device = h.pair().await;
     let mut manifest = fixture_manifest();
-    manifest.schema_version = leaf_core::SCHEMA_VERSION + 1;
+    manifest.schema_version = scanshelf_core::SCHEMA_VERSION + 1;
     for page in &manifest.pages {
         h.upload(&device, manifest.id, &page.raw).await;
     }

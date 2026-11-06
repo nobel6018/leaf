@@ -9,7 +9,7 @@
 | PDF | `<이름>.pdf` | CoreGraphics PDF 문맥. 페이지 그림 + 보이지 않는 글자 층 |
 | JPG | `<이름>_jpg.zip` | 처리된 페이지 JPEG를 압축 없이(Stored) 묶음. `<이름>_01.jpg` |
 | 텍스트 | `<이름>.txt` | 쪽마다 `[n쪽]` 머리 + OCR 글자 |
-| Word, AI 묶음 | ai 팀 `leaf-ai` | 화면 단추만 두고 `export_docx`, `export_ai_bundle` 명령을 부름 |
+| Word, AI 묶음 | ai 팀 `scanshelf-ai` | 화면 단추만 두고 `export_docx`, `export_ai_bundle` 명령을 부름 |
 
 ## 텍스트 레이어 PDF
 

@@ -59,7 +59,7 @@
 `src-tauri/src/book.rs` 테스트. 실제 책은 쓰지 않고 합성 `OcrPage`를 만듭니다.
 
 ```sh
-cargo test -p leaf --lib book -- --nocapture
+cargo test -p scanshelf --lib book -- --nocapture
 ```
 
 펼친 책 300쪽(원본 150장) 20권. 장마다 4% 건너뜀, 3% 두 번 찍음. 쪽마다 6% 번호 없음, 5% 혼동 글자(8→B, 0→O, 1→l), 3% 끝자리 오독, 10% 머리글에 장 번호.

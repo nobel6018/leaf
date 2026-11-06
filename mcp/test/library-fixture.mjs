@@ -74,7 +74,7 @@ export const PAGE_IDS = { P1, P2, B };
 
 /** 합성 보관함을 만들고 경로를 돌려준다 */
 export function buildLibrary() {
-  const root = mkdtempSync(join(tmpdir(), "leaf-mcp-test-"));
+  const root = mkdtempSync(join(tmpdir(), "scanshelf-mcp-test-"));
   process.on("exit", () => rmSync(root, { recursive: true, force: true }));
 
   // 1. 팜플렛(fixtures/manifest-v1.json): 이름과 태그를 고치고, 원본 순서를 뒤집었다(대문자 id로 적어 대소문자 무시 확인)

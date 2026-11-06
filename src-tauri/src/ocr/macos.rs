@@ -3,7 +3,7 @@
 //! @see docs/ocr.md
 
 use image::RgbImage;
-use leaf_core::ocr::{OcrLine, Rect};
+use scanshelf_core::ocr::{OcrLine, Rect};
 use objc2::AnyThread;
 use objc2::rc::autoreleasepool;
 use objc2::runtime::AnyObject;

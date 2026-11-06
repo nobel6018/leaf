@@ -6,8 +6,8 @@
 //! @see docs/organize.md
 
 use chrono::{DateTime, Utc};
-use leaf_ai::LlmConfig;
-use leaf_ai::document::LoadedDocument;
+use scanshelf_ai::LlmConfig;
+use scanshelf_ai::document::LoadedDocument;
 use serde::{Deserialize, Serialize};
 
 use crate::library::document_dir;
@@ -58,7 +58,7 @@ pub struct SessionSuggestion {
 }
 
 /// 문서의 촬영 구간. 페이지 촬영 시각의 처음과 끝, 페이지가 없으면 문서 만든 시각
-pub fn capture_window(manifest: &leaf_core::Manifest) -> (DateTime<Utc>, DateTime<Utc>) {
+pub fn capture_window(manifest: &scanshelf_core::Manifest) -> (DateTime<Utc>, DateTime<Utc>) {
     let times = manifest.pages.iter().map(|p| p.captured_at);
     let start = times.clone().min().unwrap_or(manifest.created_at);
     let end = times.max().unwrap_or(manifest.created_at);
@@ -139,7 +139,7 @@ struct RawChoice {
 
 /// AI가 고른 후보 자리(0부터)와 이유. 숫자가 아니거나 범위 밖이면 고르지 않은 것으로 본다
 pub fn parse_choice(answer: &str, count: usize) -> Result<(Option<usize>, String), String> {
-    let json = leaf_ai::json::extract_json_object(answer).ok_or("AI 답에 JSON이 없습니다")?;
+    let json = scanshelf_ai::json::extract_json_object(answer).ok_or("AI 답에 JSON이 없습니다")?;
     let raw: RawChoice = serde_json::from_str(json).map_err(|e| format!("AI 답을 읽지 못했습니다: {e}"))?;
     let chosen = raw.event.and_then(|v| v.as_u64()).filter(|n| *n >= 1 && (*n as usize) <= count).map(|n| n as usize - 1);
     let reason = raw.reason.unwrap_or_default().replace(['\u{00B7}', '\u{2014}'], ", ").trim().to_string();
@@ -164,7 +164,7 @@ pub fn suggest_from_events(
     if access != CalendarAccess::Granted {
         return Ok(empty(match access {
             CalendarAccess::Unsupported => "이 컴퓨터에서는 캘린더를 볼 수 없습니다",
-            _ => "캘린더 접근이 허락되지 않았습니다. 시스템 설정 > 개인정보 보호 및 보안 > 캘린더에서 leaf를 켜 주세요",
+            _ => "캘린더 접근이 허락되지 않았습니다. 시스템 설정 > 개인정보 보호 및 보안 > 캘린더에서 scanshelf를 켜 주세요",
         }));
     }
     if found.is_empty() {
@@ -173,7 +173,7 @@ pub fn suggest_from_events(
     if !doc.has_ocr_text() {
         return Ok(SessionSuggestion { candidates: found, ..empty("글자를 읽은 페이지가 없어 일정을 확인하지 못했습니다") });
     }
-    let answer = leaf_ai::cli::run_prompt(llm, &build_prompt(doc, &found)).map_err(|e| e.to_string())?;
+    let answer = scanshelf_ai::cli::run_prompt(llm, &build_prompt(doc, &found)).map_err(|e| e.to_string())?;
     let (chosen, reason) = parse_choice(&answer, found.len())?;
     let session = chosen.map(|i| found[i].title.trim().to_string());
     Ok(SessionSuggestion { access, candidates: found, chosen, session, reason })
@@ -306,7 +306,7 @@ mod platform {
 mod tests {
     use super::*;
     use crate::ask::testkit::*;
-    use leaf_core::DocumentKind;
+    use scanshelf_core::DocumentKind;
 
     fn hm(h: u32, m: u32) -> DateTime<Utc> {
         chrono::TimeZone::with_ymd_and_hms(&Utc, 2026, 11, 5, h, m, 0).unwrap()

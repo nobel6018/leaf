@@ -217,7 +217,7 @@ export default function App() {
     [openDocument, importPaths, pickAndImport],
   );
 
-  // leaf:// 링크, Finder 열기, 메뉴. 구독을 마친 뒤 그 전에 들어온 요청(링크로 앱을 띄운 경우)을 받는다
+  // scanshelf:// 링크, Finder 열기, 메뉴. 구독을 마친 뒤 그 전에 들어온 요청(링크로 앱을 띄운 경우)을 받는다
   const actionRef = useRef(handleAction);
   actionRef.current = handleAction;
   useEffect(() => {
@@ -296,7 +296,7 @@ export default function App() {
   return (
     <div className="shell">
       <aside className="sidebar">
-        <div className="brand">leaf</div>
+        <div className="brand">scanshelf</div>
         {nav("library", "보관함")}
         {nav("search", "검색")}
         {nav("settings", "설정")}

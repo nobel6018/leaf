@@ -7,7 +7,7 @@ pub mod blocks;
 mod macos;
 
 use image::RgbImage;
-use leaf_core::ocr::OcrPage;
+use scanshelf_core::ocr::OcrPage;
 
 #[derive(Debug, thiserror::Error)]
 pub enum OcrError {

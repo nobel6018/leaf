@@ -1,5 +1,5 @@
 //! 문서 보관함 조회와 Mac 쪽 수정(edits.json, processing.json 옵션, summary.json 손 편집).
-//! 형식은 leaf-core가 정한다.
+//! 형식은 scanshelf-core가 정한다.
 //!
 //! @see docs/document-format.md
 //! @see docs/pipeline.md
@@ -7,10 +7,10 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use leaf_core::overrides::Edits;
-use leaf_core::processing::{ProcessOptions, Processing};
-use leaf_core::summary::{PamphletSummary, SUMMARY_FILE};
-use leaf_core::{DocumentKind, Manifest, PageLayout, Quad};
+use scanshelf_core::overrides::Edits;
+use scanshelf_core::processing::{ProcessOptions, Processing};
+use scanshelf_core::summary::{PamphletSummary, SUMMARY_FILE};
+use scanshelf_core::{DocumentKind, Manifest, PageLayout, Quad};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tauri::Manager;
@@ -33,20 +33,20 @@ pub fn cache_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 pub fn document_dir(app: &tauri::AppHandle, document_id: &str) -> Result<PathBuf, String> {
     let id = Uuid::parse_str(document_id).map_err(|_| format!("문서 id가 올바르지 않다: {document_id}"))?;
     let dir = library_dir(app)?.join(id.to_string());
-    if !dir.join(leaf_core::MANIFEST_FILE).exists() {
+    if !dir.join(scanshelf_core::MANIFEST_FILE).exists() {
         return Err(format!("문서를 찾지 못했다: {document_id}"));
     }
     Ok(dir)
 }
 
-/// leaf-core 공용 쓰기를 화면용 오류 문자열로 감싼다
+/// scanshelf-core 공용 쓰기를 화면용 오류 문자열로 감싼다
 pub fn write_json<T: Serialize>(path: &Path, value: &T) -> Result<(), String> {
-    leaf_core::fsio::write_json(path, value).map_err(|e| e.to_string())
+    scanshelf_core::fsio::write_json(path, value).map_err(|e| e.to_string())
 }
 
 /// 없으면 None, 깨졌으면 오류
 pub fn read_json<T: DeserializeOwned>(path: &Path) -> Result<Option<T>, String> {
-    leaf_core::fsio::read_json_optional(path).map_err(|e| e.to_string())
+    scanshelf_core::fsio::read_json_optional(path).map_err(|e| e.to_string())
 }
 
 /// edits.json이 깨졌으면 없는 것으로 본다. 화면에서 다시 고치면 새로 쓴다
@@ -170,7 +170,7 @@ pub fn summarize(dir: &Path, cache: &Path, pipeline: &Pipeline) -> Result<Docume
 #[serde(rename_all = "camelCase")]
 pub struct OutputView {
     pub id: String,
-    pub part: leaf_core::processing::PagePart,
+    pub part: scanshelf_core::processing::PagePart,
     pub image: String,
     pub thumb: Option<String>,
     pub has_ocr: bool,
@@ -362,7 +362,7 @@ pub async fn raw_preview(app: tauri::AppHandle, document_id: String, page_id: St
 }
 
 #[tauri::command]
-pub fn get_ocr(app: tauri::AppHandle, document_id: String, output_id: String) -> Result<Option<leaf_core::ocr::OcrPage>, String> {
+pub fn get_ocr(app: tauri::AppHandle, document_id: String, output_id: String) -> Result<Option<scanshelf_core::ocr::OcrPage>, String> {
     let dir = document_dir(&app, &document_id)?;
     let processing = load_processing(&dir);
     let Some(path) = processing.outputs.iter().find(|o| o.id == output_id).and_then(|o| o.ocr.clone()) else {
@@ -412,7 +412,7 @@ mod tests {
     #[test]
     fn 깨진_edits는_빈_수정으로_본다() {
         let dir = tempfile::tempdir().unwrap();
-        fs::write(dir.path().join(leaf_core::overrides::EDITS_FILE), b"{not json").unwrap();
+        fs::write(dir.path().join(scanshelf_core::overrides::EDITS_FILE), b"{not json").unwrap();
         assert_eq!(load_edits(dir.path()), Edits::default());
     }
 }

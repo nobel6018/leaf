@@ -1,4 +1,4 @@
-"""LaMa(Apache-2.0) ONNX를 받아 해시를 확인한다. leaf-vision 인페인팅 모델.
+"""LaMa(Apache-2.0) ONNX를 받아 해시를 확인한다. scanshelf-vision 인페인팅 모델.
 
 Carve/LaMa-ONNX의 lama_fp32.onnx(big-lama를 torch.onnx.export로 옮긴 것)를 커밋 고정으로 받는다.
 입력: image [1, 3, 512, 512] float32 RGB 0~1, mask [1, 1, 512, 512] float32 (1 = 지울 곳)

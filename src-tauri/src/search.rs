@@ -202,9 +202,9 @@ pub fn snippet(text: &str, spans: &[(usize, usize)]) -> Vec<Segment> {
 fn document_fingerprint(dir: &Path) -> String {
     let mut parts = Vec::new();
     for name in [
-        leaf_core::MANIFEST_FILE,
-        leaf_core::overrides::EDITS_FILE,
-        leaf_core::processing::PROCESSING_FILE,
+        scanshelf_core::MANIFEST_FILE,
+        scanshelf_core::overrides::EDITS_FILE,
+        scanshelf_core::processing::PROCESSING_FILE,
     ] {
         let modified = std::fs::metadata(dir.join(name))
             .and_then(|m| m.modified())
@@ -243,7 +243,7 @@ pub fn index_document(conn: &mut Connection, dir: &Path, force: bool) -> Result<
     .map_err(|e| e.to_string())?;
     for (index, output) in processing.outputs.iter().enumerate() {
         let Some(ocr_path) = &output.ocr else { continue };
-        let Ok(Some(page)) = read_json::<leaf_core::ocr::OcrPage>(&dir.join(ocr_path)) else {
+        let Ok(Some(page)) = read_json::<scanshelf_core::ocr::OcrPage>(&dir.join(ocr_path)) else {
             continue;
         };
         tx.execute(
@@ -369,7 +369,7 @@ pub fn refresh_all(app: &tauri::AppHandle) {
     if let Ok(entries) = std::fs::read_dir(&library) {
         for entry in entries.flatten() {
             let dir = entry.path();
-            if !dir.join(leaf_core::MANIFEST_FILE).exists() {
+            if !dir.join(scanshelf_core::MANIFEST_FILE).exists() {
                 continue;
             }
             if let Some(name) = dir.file_name().and_then(|n| n.to_str()) {
@@ -393,8 +393,8 @@ pub fn refresh_all(app: &tauri::AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use leaf_core::ocr::{OcrPage, Rect};
-    use leaf_core::processing::{OutputPage, PIPELINE_VERSION, PagePart, ProcessOptions, Processing};
+    use scanshelf_core::ocr::{OcrPage, Rect};
+    use scanshelf_core::processing::{OutputPage, PIPELINE_VERSION, PagePart, ProcessOptions, Processing};
 
     fn write_document(root: &Path, name: &str, session: &str, pages: &[&str]) -> std::path::PathBuf {
         let id = uuid::Uuid::new_v4();

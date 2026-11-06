@@ -1,11 +1,11 @@
 {
-  "name": "leaf-mcp",
+  "name": "scanshelf-mcp",
   "version": "0.1.0",
   "private": true,
-  "description": "leaf로 스캔한 문서를 Claude 같은 MCP 클라이언트에서 찾고 읽는 서버(읽기 전용)",
+  "description": "scanshelf로 스캔한 문서를 Claude 같은 MCP 클라이언트에서 찾고 읽는 서버(읽기 전용)",
   "type": "module",
   "bin": {
-    "leaf-mcp": "dist/index.js"
+    "scanshelf-mcp": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",

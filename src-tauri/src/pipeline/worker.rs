@@ -94,7 +94,7 @@ impl Pipeline {
     pub fn start(&self, app: tauri::AppHandle) {
         let pipeline = self.clone();
         std::thread::Builder::new()
-            .name("leaf-pipeline".into())
+            .name("scanshelf-pipeline".into())
             .spawn(move || {
                 loop {
                     let (document_id, force) = pipeline.next_job();

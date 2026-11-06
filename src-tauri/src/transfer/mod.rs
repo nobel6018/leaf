@@ -163,7 +163,7 @@ pub fn mac_name() -> String {
             }
         }
     }
-    "leaf".to_string()
+    "scanshelf".to_string()
 }
 
 #[tauri::command]

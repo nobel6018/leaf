@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "leaf",
-  "version": "0.1.2",
-  "identifier": "com.nobel6018.leaf",
+  "productName": "scanshelf",
+  "version": "0.2.0",
+  "identifier": "com.nobel6018.scanshelf",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "leaf",
+        "title": "scanshelf",
         "width": 1200,
         "height": 800,
         "minWidth": 800,
@@ -51,14 +51,14 @@
     "deep-link": {
       "desktop": {
         "schemes": [
-          "leaf"
+          "scanshelf"
         ]
       }
     },
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDJEN0EzNzVCRTlEMDBFMjQKUldRa0R0RHBXemQ2TGFscGFmVHNlTG5PZS9jOXFkR2ZHZHhaUzVQNUxmOFVsQnJDUGtieVhuemgK",
       "endpoints": [
-        "https://github.com/nobel6018/leaf/releases/latest/download/latest.json"
+        "https://github.com/nobel6018/scanshelf/releases/latest/download/latest.json"
       ]
     }
   }

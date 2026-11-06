@@ -2,13 +2,13 @@
 
 2026-11-05 결정: 같은 Wi-Fi면 직접 보내고, 떨어져 있으면 iCloud 폴더로 보냅니다.
 
-코드: 서명 `crates/leaf-core/src/transfer.rs`, 예시 `fixtures/transfer-signature.json`, Mac 서버 `src-tauri/src/transfer/`, 보관함 가져오기 `src-tauri/src/store.rs`(`Store::import`), iCloud inbox `src-tauri/src/inbox.rs`(`scan_inbox`)
+코드: 서명 `crates/scanshelf-core/src/transfer.rs`, 예시 `fixtures/transfer-signature.json`, Mac 서버 `src-tauri/src/transfer/`, 보관함 가져오기 `src-tauri/src/store.rs`(`Store::import`), iCloud inbox `src-tauri/src/inbox.rs`(`scan_inbox`)
 
 ## Wi-Fi 직접 전송 (기본)
 
-Mac 앱이 HTTP 서버를 열고 Bonjour `_leaf._tcp`로 알립니다. iPhone은 Network.framework `NWBrowser`로 찾습니다.
+Mac 앱이 HTTP 서버를 열고 Bonjour `_scanshelf._tcp`로 알립니다. iPhone은 Network.framework `NWBrowser`로 찾습니다.
 
-macOS에서는 시스템 mDNSResponder에 등록합니다(`DNSServiceRegister`). v0.1.0은 자체 mDNS 응답기(mdns-sd)를 썼는데, mDNSResponder가 5353 포트를 쥐고 있어 광고가 루프백에만 보이고 Wi-Fi로 나가지 않았습니다. 확인은 `dns-sd -B _leaf._tcp`의 `if` 열에 Wi-Fi 인터페이스 번호가 보이는지로 합니다.
+macOS에서는 시스템 mDNSResponder에 등록합니다(`DNSServiceRegister`). v0.1.0은 자체 mDNS 응답기(mdns-sd)를 썼는데, mDNSResponder가 5353 포트를 쥐고 있어 광고가 루프백에만 보이고 Wi-Fi로 나가지 않았습니다. 확인은 `dns-sd -B _scanshelf._tcp`의 `if` 열에 Wi-Fi 인터페이스 번호가 보이는지로 합니다.
 
 - 서버는 앱을 켤 때 `0.0.0.0`의 OS가 고른 포트에 엽니다(`transfer::setup`). 포트는 실행마다 바뀌고 iPhone은 Bonjour로 알아냅니다
 - Bonjour는 순수 Rust `mdns-sd`로 알립니다(Windows에도 그대로 쓰려고). 인스턴스 이름은 Mac의 컴퓨터 이름, TXT는 `api=1`, `version=<앱 버전>`입니다. 서버가 IPv4에만 열려 있어 IPv4 주소만 알립니다(`transfer/bonjour.rs`)
@@ -17,7 +17,7 @@ macOS에서는 시스템 mDNSResponder에 등록합니다(`DNSServiceRegister`).
 
 1. Mac 설정에서 "iPhone 연결"을 누르면 6자리 코드가 2분 동안 표시됩니다
 2. iPhone에 코드를 넣으면 `POST /v1/pair`로 보냅니다
-3. Mac은 32바이트 무작위 토큰을 만들어 돌려주고 키체인에 기기 id와 같이 둡니다(서비스 `com.nobel6018.leaf.transfer`, 계정은 기기 id). iPhone도 키체인에 둡니다. 기기 목록(id, 이름, 짝지은 시각)은 토큰 없이 앱 데이터 `devices.json`에 둡니다(`transfer/devices.rs`)
+3. Mac은 32바이트 무작위 토큰을 만들어 돌려주고 키체인에 기기 id와 같이 둡니다(서비스 `com.nobel6018.scanshelf.transfer`, 계정은 기기 id). iPhone도 키체인에 둡니다. 기기 목록(id, 이름, 짝지은 시각)은 토큰 없이 앱 데이터 `devices.json`에 둡니다(`transfer/devices.rs`)
 4. 이후 요청은 토큰을 보내지 않고 서명만 보냅니다
 
 코드를 5번 틀리면 짝짓기 창을 닫습니다. 맞는 코드는 한 번만 쓰이고 바로 창을 닫습니다. 같은 기기 id가 다시 짝지으면 토큰을 새로 바꿉니다(`transfer/pairing.rs`).
@@ -28,14 +28,14 @@ macOS에서는 시스템 mDNSResponder에 등록합니다(`DNSServiceRegister`).
 
 | 헤더 | 값 |
 |---|---|
-| `X-Leaf-Device` | iPhone 기기 id(UUID) |
-| `X-Leaf-Timestamp` | 유닉스 초 |
-| `X-Leaf-Body-Sha256` | 본문 SHA-256 hex (본문 없으면 빈 바이트의 해시) |
-| `X-Leaf-Signature` | `HMAC-SHA256(토큰, "METHOD\nPATH\nTIMESTAMP\nBODY_SHA256")` hex |
+| `X-Scanshelf-Device` | iPhone 기기 id(UUID) |
+| `X-Scanshelf-Timestamp` | 유닉스 초 |
+| `X-Scanshelf-Body-Sha256` | 본문 SHA-256 hex (본문 없으면 빈 바이트의 해시) |
+| `X-Scanshelf-Signature` | `HMAC-SHA256(토큰, "METHOD\nPATH\nTIMESTAMP\nBODY_SHA256")` hex |
 
 Mac은 시각 차이가 300초를 넘거나, 본문 해시가 다르거나, 서명이 맞지 않으면 401을 돌려줍니다. 경로는 쿼리 없는 경로이고, 퍼센트 인코딩을 풀지 않은 요청 줄 그대로입니다(파일 이름이 UUID라 실제로는 인코딩할 글자가 없습니다).
 
-원본 업로드는 서명을 먼저 확인한 뒤 본문을 디스크에 흘려 쓰면서 해시를 구하고, 끝에서 `X-Leaf-Body-Sha256`과 비교합니다. 다르면 임시 파일을 지우고 401입니다.
+원본 업로드는 서명을 먼저 확인한 뒤 본문을 디스크에 흘려 쓰면서 해시를 구하고, 끝에서 `X-Scanshelf-Body-Sha256`과 비교합니다. 다르면 임시 파일을 지우고 401입니다.
 
 알려진 한계: 본문(사진)은 암호화하지 않습니다. 같은 Wi-Fi 안에서만 오가고, 서명으로 변조와 무단 업로드는 막습니다.
 
@@ -77,9 +77,9 @@ iPhone은 보내기에 성공한 문서를 "Mac에 있음"으로 표시합니다
 
 무료 Apple ID 서명이라 CloudKit은 못 쓰고 iCloud Drive 폴더를 씁니다.
 
-- iPhone: 처음 한 번 파일 앱 폴더 선택기로 `iCloud Drive/leaf`를 고르고 보안 범위 북마크로 기억합니다
-- iPhone은 `leaf/inbox/<문서 id>/`에 원본을 먼저, manifest를 마지막에 복사합니다
-- Mac은 `~/Library/Mobile Documents/com~apple~CloudDocs/leaf/inbox`를 지켜보다가 manifest가 있고 모든 원본이 받아진 문서를 보관함으로 가져온 뒤 inbox에서 지웁니다
+- iPhone: 처음 한 번 파일 앱 폴더 선택기로 `iCloud Drive/scanshelf`를 고르고 보안 범위 북마크로 기억합니다
+- iPhone은 `scanshelf/inbox/<문서 id>/`에 원본을 먼저, manifest를 마지막에 복사합니다
+- Mac은 `~/Library/Mobile Documents/com~apple~CloudDocs/scanshelf/inbox`를 지켜보다가 manifest가 있고 모든 원본이 받아진 문서를 보관함으로 가져온 뒤 inbox에서 지웁니다
 - 아직 받지 않은 파일(`.icloud` 자리표시)은 `brctl download`나 `NSFileCoordinator`로 받게 한 뒤 다시 확인합니다
 
 Mac 구현(`src-tauri/src/inbox.rs`):
@@ -89,7 +89,7 @@ Mac 구현(`src-tauri/src/inbox.rs`):
 - 폴더 이름이 문서 id(UUID)가 아니면 건너뛰고, manifest id와 다르면 가져오지 않습니다
 - 이미 보관함에 있는 원본은 iPhone이 inbox에 다시 올리지 않아도 됩니다
 - 보관함에는 복사로 넣고, 가져오기가 끝난 뒤에 inbox 폴더를 지웁니다. 가져오기가 실패하면 inbox는 그대로 남습니다
-- iCloud Drive가 켜져 있으면 앱을 켤 때 `leaf/inbox`를 만들어 둡니다. macOS가 아니면 감시하지 않습니다
+- iCloud Drive가 켜져 있으면 앱을 켤 때 `scanshelf/inbox`를 만들어 둡니다. macOS가 아니면 감시하지 않습니다
 
 ## Mac 앱 화면 쪽 연결 (Tauri)
 
@@ -109,3 +109,12 @@ Mac 구현(`src-tauri/src/inbox.rs`):
 | `pairing-completed` | `{ deviceId: string, deviceName: string }` | 짝짓기에 성공한 뒤 |
 
 `pairedAt`, `expiresAt`은 RFC 3339 UTC 문자열입니다. 서버 포트를 못 열면 앱은 그대로 뜨고 `listening: false`, `port: 0`으로 보입니다.
+
+## 이름을 바꾸기 전 데이터
+
+v0.2.0에서 앱 이름과 번들 id를 바꿨습니다(`com.nobel6018.leaf` → `com.nobel6018.scanshelf`).
+
+- Mac은 시작할 때 옛 데이터 폴더의 `library/`, `models/`를 옮깁니다(`src-tauri/src/migrate.rs`)
+- Mac은 옛 iCloud 폴더 `iCloud Drive/leaf/inbox`가 있으면 같이 훑어 가져옵니다(`src-tauri/src/inbox.rs` `legacy_inbox_dir`)
+- 짝짓기는 다시 합니다. 토큰이 옛 이름의 키체인 항목에 있습니다
+- iPhone은 번들 id가 달라 다른 앱으로 설치됩니다. 옛 앱의 문서는 옮겨지지 않으니, 옛 앱을 지우기 전에 보내기를 끝냅니다

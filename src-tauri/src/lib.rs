@@ -1,4 +1,4 @@
-//! leaf Mac 앱. 문서 보관함은 앱 데이터 폴더의 `library/`이고, 문서 하나가 폴더 하나다.
+//! scanshelf Mac 앱. 문서 보관함은 앱 데이터 폴더의 `library/`이고, 문서 하나가 폴더 하나다.
 //!
 //! @see docs/architecture.md
 
@@ -13,6 +13,7 @@ mod export;
 mod import;
 pub mod inbox;
 mod library;
+mod migrate;
 mod models;
 mod ocr;
 mod pipeline;
@@ -30,7 +31,7 @@ pub fn run() {
     tauri::Builder::default()
         // 다른 플러그인보다 먼저 등록해야 두 번째 실행을 가장 먼저 가로챈다. 링크는 deep-link 플러그인이 받는다
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
-            if args.iter().any(|a| a.starts_with("leaf:")) {
+            if args.iter().any(|a| a.starts_with("scanshelf:")) {
                 return;
             }
             let files = actions::opened_files(args.iter().skip(1).map(std::path::PathBuf::from));
@@ -62,6 +63,11 @@ pub fn run() {
             actions::register_global_shortcut(app.handle());
             setup_deep_links(app)?;
             let app_data_dir = app.path().app_data_dir()?;
+            // 보관함을 처음 읽기 전에 옮긴다
+            let moved = migrate::migrate_legacy_data(&app_data_dir);
+            if moved > 0 {
+                eprintln!("이름을 바꾸기 전 데이터 {moved}개를 옮겼다");
+            }
             let store = Arc::new(store::Store::new(&app_data_dir));
             store.clean_stale_parts();
             transfer::setup(app.handle(), store.clone(), &app_data_dir);
@@ -143,9 +149,9 @@ pub fn run() {
             book::sort_by_page_numbers,
         ])
         .build(tauri::generate_context!())
-        .expect("leaf 앱을 시작하지 못했다")
+        .expect("scanshelf 앱을 시작하지 못했다")
         .run(|app, event| {
-            // Finder에서 "다음으로 열기 > leaf"를 고르거나 Dock 아이콘에 파일을 끌어다 놓은 경우
+            // Finder에서 "다음으로 열기 > scanshelf"를 고르거나 Dock 아이콘에 파일을 끌어다 놓은 경우
             #[cfg(target_os = "macos")]
             if let tauri::RunEvent::Opened { urls } = &event {
                 let files = actions::opened_files(urls.iter().filter_map(|u| u.to_file_path().ok()));
@@ -157,7 +163,7 @@ pub fn run() {
         });
 }
 
-/// leaf:// 링크. 앱이 떠 있으면 on_open_url로, 링크로 앱을 처음 띄웠으면 get_current로 온다.
+/// scanshelf:// 링크. 앱이 떠 있으면 on_open_url로, 링크로 앱을 처음 띄웠으면 get_current로 온다.
 /// 화면이 준비되기 전 요청은 actions::Bus가 보관했다가 frontend_ready로 넘긴다
 fn setup_deep_links(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {
     use tauri_plugin_deep_link::DeepLinkExt;

@@ -13,7 +13,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, SubsecRound, Utc};
-use leaf_core::{DocumentKind, Manifest, Page, PageLayout, SCHEMA_VERSION};
+use scanshelf_core::{DocumentKind, Manifest, Page, PageLayout, SCHEMA_VERSION};
 use serde::Serialize;
 use tauri::Manager;
 use tauri_plugin_dialog::DialogExt;
@@ -243,7 +243,7 @@ pub async fn pick_import_files(app: tauri::AppHandle) -> Result<Vec<String>, Str
     let picked = app
         .dialog()
         .file()
-        .set_title("leaf로 가져오기")
+        .set_title("scanshelf로 가져오기")
         .add_filter("그림, PDF", &extensions)
         .blocking_pick_files()
         .unwrap_or_default();
@@ -348,8 +348,8 @@ mod pdf_macos {
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use leaf_core::ocr::OcrPage;
-    use leaf_core::processing::{OutputPage, PIPELINE_VERSION, PagePart, ProcessOptions, Processing};
+    use scanshelf_core::ocr::OcrPage;
+    use scanshelf_core::processing::{OutputPage, PIPELINE_VERSION, PagePart, ProcessOptions, Processing};
 
     /// 처리까지 끝난 합성 문서. 쪽마다 OCR 글자를 넣는다
     pub(crate) fn write_sample_document(root: &Path, name: &str, texts: &[&str]) -> PathBuf {
@@ -392,7 +392,7 @@ pub(crate) mod tests {
         .save(&dir)
         .unwrap();
         crate::library::write_json(
-            &dir.join(leaf_core::processing::PROCESSING_FILE),
+            &dir.join(scanshelf_core::processing::PROCESSING_FILE),
             &Processing {
                 defaults: ProcessOptions::default(),
                 outputs,

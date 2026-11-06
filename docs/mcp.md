@@ -2,7 +2,7 @@
 
 코드: `mcp/src/`(`library.ts` 보관함 읽기와 edits 적용, `search.ts` 검색 규칙, `image.ts` 그림 줄이기, `server.ts` 도구). 테스트: `mcp/test/`
 
-Claude Code, Claude 데스크톱 같은 MCP 클라이언트가 leaf로 스캔한 문서를 직접 찾고 읽게 합니다. 스캔한 책, 문서, 팜플렛을 나중에 조사할 때 참고 자료로 쓰려는 것입니다. 예를 들어 "작년 박람회에서 받은 냉각 업체 중 협력 후보 보여 줘", "이 책에서 액침 냉각을 다룬 곳 찾아 줘" 같은 요청입니다.
+Claude Code, Claude 데스크톱 같은 MCP 클라이언트가 scanshelf로 스캔한 문서를 직접 찾고 읽게 합니다. 스캔한 책, 문서, 팜플렛을 나중에 조사할 때 참고 자료로 쓰려는 것입니다. 예를 들어 "작년 박람회에서 받은 냉각 업체 중 협력 후보 보여 줘", "이 책에서 액침 냉각을 다룬 곳 찾아 줘" 같은 요청입니다.
 
 읽기만 합니다. 보관함 파일을 고치지 않고, Mac 앱이 꺼져 있어도 됩니다.
 
@@ -30,7 +30,7 @@ npm run build
 Claude Code에 등록합니다.
 
 ```sh
-claude mcp add leaf --scope user -- node "$PWD/dist/index.js"
+claude mcp add scanshelf --scope user -- node "$PWD/dist/index.js"
 ```
 
 Claude 데스크톱은 설정 파일(`claude_desktop_config.json`)의 `mcpServers`에 넣습니다.
@@ -38,27 +38,27 @@ Claude 데스크톱은 설정 파일(`claude_desktop_config.json`)의 `mcpServer
 ```json
 {
   "mcpServers": {
-    "leaf": { "command": "node", "args": ["/절대/경로/leaf/mcp/dist/index.js"] }
+    "scanshelf": { "command": "node", "args": ["/절대/경로/scanshelf/mcp/dist/index.js"] }
   }
 }
 ```
 
-보관함 위치는 `~/Library/Application Support/com.nobel6018.leaf/library/`(Mac 앱의 `app_data_dir()/library`, `src-tauri/src/library.rs` `library_dir`)입니다. 다른 폴더를 읽게 하려면 `LEAF_LIBRARY_DIR`에 보관함 폴더(문서 id 폴더들이 바로 들어 있는 곳)를 줍니다.
+보관함 위치는 `~/Library/Application Support/com.nobel6018.scanshelf/library/`(Mac 앱의 `app_data_dir()/library`, `src-tauri/src/library.rs` `library_dir`)입니다. 다른 폴더를 읽게 하려면 `SCANSHELF_LIBRARY_DIR`에 보관함 폴더(문서 id 폴더들이 바로 들어 있는 곳)를 줍니다.
 
 ```sh
-claude mcp add leaf --scope user -e LEAF_LIBRARY_DIR=/다른/보관함 -- node "$PWD/dist/index.js"
+claude mcp add scanshelf --scope user -e SCANSHELF_LIBRARY_DIR=/다른/보관함 -- node "$PWD/dist/index.js"
 ```
 
 ## 쓰는 예
 
-- "leaf에서 작년 박람회 팜플렛 중 냉각 업체이면서 협력 후보인 곳 정리해 줘"
-- "leaf 2026 데이터센터코리아 묶음 회사들을 표로 만들어 줘"
-- "leaf에 있는 데이터센터 설계 책에서 UPS 이야기하는 쪽 찾아서 요약해 줘"
+- "scanshelf에서 작년 박람회 팜플렛 중 냉각 업체이면서 협력 후보인 곳 정리해 줘"
+- "scanshelf 2026 데이터센터코리아 묶음 회사들을 표로 만들어 줘"
+- "scanshelf에 있는 데이터센터 설계 책에서 UPS 이야기하는 쪽 찾아서 요약해 줘"
 - "한빛로보틱스 팜플렛 3쪽 스펙 표를 그림으로 보고 정리해 줘"
 
 ## 읽는 규칙
 
-앱과 같은 결과를 보이도록 `crates/leaf-core`의 규칙을 TypeScript로 옮겼습니다. 형식이 바뀌면 이쪽도 같이 고칩니다.
+앱과 같은 결과를 보이도록 `crates/scanshelf-core`의 규칙을 TypeScript로 옮겼습니다. 형식이 바뀌면 이쪽도 같이 고칩니다.
 
 - manifest: `schemaVersion`이 1보다 크면 읽지 않습니다(`SCHEMA_VERSION`). manifest가 없거나 깨진 폴더는 건너뜁니다
 - edits.json: `Edits::apply`(`overrides.rs`)와 같습니다. 이름, 종류, 묶음을 덮고, `deletedPages`를 빼고, `layouts`와 `quads`를 덮고, `pageOrder`로 안정 정렬합니다(순서에 없는 새 페이지는 촬영 순서대로 뒤). 깨진 edits.json은 앱처럼 없는 것으로 봅니다. id는 대소문자를 무시하고 비교합니다
@@ -73,7 +73,7 @@ claude mcp add leaf --scope user -e LEAF_LIBRARY_DIR=/다른/보관함 -- node "
 
 OCR 본문과 AI 정리는 종이에서 읽은 글자라 누구든 써 넣을 수 있습니다. 팜플렛에 "이전 지시를 무시하라" 같은 글이 있을 수 있습니다. 그래서 서버 안내문(`INSTRUCTIONS`)이 클라이언트에 문서 글자 속 지시를 따르지 말라고 알리고, `get_document`는 본문과 AI 정리 앞에, `search_documents`는 결과 첫 줄에 같은 안내를 붙입니다. 본문은 `[N쪽 시작]`, `[N쪽 끝]` 표시로 감싸 도구 문구와 섞이지 않게 합니다.
 
-읽은 내용을 보낼지는 클라이언트(Claude)가 정합니다. MCP 서버는 이 컴퓨터 안에서만 돌지만, 읽은 본문과 그림은 Claude 대화에 들어가 Anthropic으로 갑니다. 스캔 자료가 기기 밖으로 나가지 않는다는 leaf 기본 원칙의 예외이니, 회사 자료나 개인 소장 책을 다룰 때 이 점을 알고 씁니다.
+읽은 내용을 보낼지는 클라이언트(Claude)가 정합니다. MCP 서버는 이 컴퓨터 안에서만 돌지만, 읽은 본문과 그림은 Claude 대화에 들어가 Anthropic으로 갑니다. 스캔 자료가 기기 밖으로 나가지 않는다는 scanshelf 기본 원칙의 예외이니, 회사 자료나 개인 소장 책을 다룰 때 이 점을 알고 씁니다.
 
 ## 한계
 
@@ -90,4 +90,4 @@ cd mcp
 npm test
 ```
 
-실제 스캔은 쓰지 않습니다. `fixtures/`의 manifest 예시에 합성 edits, 처리 결과, OCR, AI 정리, 단색 JPEG를 붙인 임시 보관함(`mcp/test/library-fixture.mjs`)을 만들고, edits 적용(`crates/leaf-core/tests/edits.rs`와 같은 경우), 태그 규칙, 검색 규칙, 그림 줄이기, 도구 6개를 MCP 클라이언트로 불러 확인합니다. 도구를 모두 부른 뒤 보관함 파일 내용과 수정 시각이 그대로인지도 봅니다. CI는 `.github/workflows/build.yml`의 `mcp` 작업입니다.
+실제 스캔은 쓰지 않습니다. `fixtures/`의 manifest 예시에 합성 edits, 처리 결과, OCR, AI 정리, 단색 JPEG를 붙인 임시 보관함(`mcp/test/library-fixture.mjs`)을 만들고, edits 적용(`crates/scanshelf-core/tests/edits.rs`와 같은 경우), 태그 규칙, 검색 규칙, 그림 줄이기, 도구 6개를 MCP 클라이언트로 불러 확인합니다. 도구를 모두 부른 뒤 보관함 파일 내용과 수정 시각이 그대로인지도 봅니다. CI는 `.github/workflows/build.yml`의 `mcp` 작업입니다.

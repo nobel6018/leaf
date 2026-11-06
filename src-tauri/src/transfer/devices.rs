@@ -14,7 +14,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 /// 키체인 항목의 서비스 이름. 계정 이름은 기기 id
-const KEYCHAIN_SERVICE: &str = "com.nobel6018.leaf.transfer";
+const KEYCHAIN_SERVICE: &str = "com.nobel6018.scanshelf.transfer";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

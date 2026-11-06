@@ -4,7 +4,7 @@ import { getVersion } from "@tauri-apps/api/app";
 // Release 다운로드 주소는 CORS 헤더가 없어 웹뷰에서 못 읽으므로, CORS를 허용하는 GitHub API를 쓴다(로그인 없이 IP당 시간당 60회).
 // @see docs/update.md
 
-const LATEST_RELEASE = "https://api.github.com/repos/nobel6018/leaf/releases/latest";
+const LATEST_RELEASE = "https://api.github.com/repos/nobel6018/scanshelf/releases/latest";
 
 export interface UpdateInfo {
   current: string;

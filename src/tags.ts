@@ -1,5 +1,5 @@
 // 문서 태그 모아 보기. `/`로 계층을 만든 태그(분야/냉각, 책/경제)를 폴더 트리처럼 보여 준다.
-// 정리 규칙은 Rust(crates/leaf-core/src/tags.rs)와 같다
+// 정리 규칙은 Rust(crates/scanshelf-core/src/tags.rs)와 같다
 // @see docs/organize.md
 
 export interface TagNode {
@@ -15,7 +15,7 @@ export interface TagNode {
 /** 태그 없는 문서만 보는 필터 값 */
 export const UNTAGGED = "\u0000untagged";
 
-/** 문서 하나에 붙일 수 있는 태그 수(leaf-core MAX_TAGS) */
+/** 문서 하나에 붙일 수 있는 태그 수(scanshelf-core MAX_TAGS) */
 export const MAX_TAGS = 10;
 
 /** 태그 하나를 정리한다. 앞뒤 공백, `/` 앞뒤 공백, 빈 단계, `#` 머리를 없앤다 */
@@ -40,7 +40,7 @@ export function normalizeTags(raw: string[]): string[] {
   return out.slice(0, MAX_TAGS);
 }
 
-/** 이 문서가 필터(태그 경로)에 드는지. 하위 태그가 붙은 문서도 든다(leaf-core tags::matches) */
+/** 이 문서가 필터(태그 경로)에 드는지. 하위 태그가 붙은 문서도 든다(scanshelf-core tags::matches) */
 export function matchesTag(tags: string[] | undefined, filter: string | null): boolean {
   if (!filter) return true;
   if (filter === UNTAGGED) return !tags?.length;

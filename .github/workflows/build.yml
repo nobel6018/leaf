@@ -77,6 +77,6 @@ jobs:
         run: |
           xcodegen generate
           DEVICE=$(xcrun simctl list devices available -j | jq -r '[.devices[][] | select(.name | startswith("iPhone"))][0].udid')
-          xcodebuild test -project Leaf.xcodeproj -scheme Leaf \
+          xcodebuild test -project Scanshelf.xcodeproj -scheme Scanshelf \
             -destination "platform=iOS Simulator,id=$DEVICE" \
             -derivedDataPath build CODE_SIGNING_ALLOWED=NO

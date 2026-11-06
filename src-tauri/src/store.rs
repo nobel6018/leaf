@@ -12,7 +12,7 @@ use std::io::{self, Read};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-use leaf_core::{MANIFEST_FILE, Manifest, ManifestError};
+use scanshelf_core::{MANIFEST_FILE, Manifest, ManifestError};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 

@@ -2846,103 +2846,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "leaf"
-version = "0.1.2"
-dependencies = [
- "axum",
- "block2",
- "chrono",
- "eyre",
- "futures-util",
- "getrandom 0.3.4",
- "hex",
- "image",
- "keyring",
- "leaf-ai",
- "leaf-core",
- "leaf-vision",
- "mdns-sd",
- "objc2",
- "objc2-app-kit",
- "objc2-core-foundation",
- "objc2-core-graphics",
- "objc2-core-text",
- "objc2-event-kit",
- "objc2-foundation",
- "objc2-image-io",
- "objc2-pdf-kit",
- "objc2-vision",
- "reqwest",
- "rusqlite",
- "rustls",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "tauri",
- "tauri-build",
- "tauri-plugin-deep-link",
- "tauri-plugin-dialog",
- "tauri-plugin-global-shortcut",
- "tauri-plugin-opener",
- "tauri-plugin-process",
- "tauri-plugin-single-instance",
- "tauri-plugin-updater",
- "tempfile",
- "thiserror 2.0.21",
- "tokio",
- "ureq 2.12.1",
- "uuid",
- "zip 2.6.1",
-]
-
-[[package]]
-name = "leaf-ai"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "csv",
- "docx-rs",
- "image",
- "leaf-core",
- "libc",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.21",
- "uuid",
-]
-
-[[package]]
-name = "leaf-core"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "hex",
- "hmac 0.12.1",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "tempfile",
- "thiserror 2.0.21",
- "uuid",
-]
-
-[[package]]
-name = "leaf-vision"
-version = "0.1.0"
-dependencies = [
- "ab_glyph",
- "hex",
- "image",
- "imageproc",
- "leaf-core",
- "ort",
- "rayon",
- "sha2 0.10.9",
- "thiserror 2.0.21",
-]
-
-[[package]]
 name = "lebe"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4863,6 +4766,103 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
 dependencies = [
  "winapi-util",
+]
+
+[[package]]
+name = "scanshelf"
+version = "0.2.0"
+dependencies = [
+ "axum",
+ "block2",
+ "chrono",
+ "eyre",
+ "futures-util",
+ "getrandom 0.3.4",
+ "hex",
+ "image",
+ "keyring",
+ "mdns-sd",
+ "objc2",
+ "objc2-app-kit",
+ "objc2-core-foundation",
+ "objc2-core-graphics",
+ "objc2-core-text",
+ "objc2-event-kit",
+ "objc2-foundation",
+ "objc2-image-io",
+ "objc2-pdf-kit",
+ "objc2-vision",
+ "reqwest",
+ "rusqlite",
+ "rustls",
+ "scanshelf-ai",
+ "scanshelf-core",
+ "scanshelf-vision",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-deep-link",
+ "tauri-plugin-dialog",
+ "tauri-plugin-global-shortcut",
+ "tauri-plugin-opener",
+ "tauri-plugin-process",
+ "tauri-plugin-single-instance",
+ "tauri-plugin-updater",
+ "tempfile",
+ "thiserror 2.0.21",
+ "tokio",
+ "ureq 2.12.1",
+ "uuid",
+ "zip 2.6.1",
+]
+
+[[package]]
+name = "scanshelf-ai"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "csv",
+ "docx-rs",
+ "image",
+ "libc",
+ "scanshelf-core",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "uuid",
+]
+
+[[package]]
+name = "scanshelf-core"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "hex",
+ "hmac 0.12.1",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "tempfile",
+ "thiserror 2.0.21",
+ "uuid",
+]
+
+[[package]]
+name = "scanshelf-vision"
+version = "0.1.0"
+dependencies = [
+ "ab_glyph",
+ "hex",
+ "image",
+ "imageproc",
+ "ort",
+ "rayon",
+ "scanshelf-core",
+ "sha2 0.10.9",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

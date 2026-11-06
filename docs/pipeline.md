@@ -21,7 +21,7 @@
 5. OCR(`docs/ocr.md`) → `ocr/<출력 id>.json`. 실패해도 페이지는 남기고 `ocr`을 비웁니다
 6. 페이지마다 `processing.json`을 저장해, 중간에 앱이 꺼져도 끝낸 페이지는 남습니다
 
-원근 보정은 `crates/leaf-vision/src/perspective.rs`(호모그래피 + 쌍삼차 보간, 출력 크기는 마주 보는 변 중 긴 쪽)입니다. Core Image를 쓰지 않아 Windows에서도 같은 결과가 나옵니다.
+원근 보정은 `crates/scanshelf-vision/src/perspective.rs`(호모그래피 + 쌍삼차 보간, 출력 크기는 마주 보는 변 중 긴 쪽)입니다. Core Image를 쓰지 않아 Windows에서도 같은 결과가 나옵니다.
 
 ## 단계 연결 자리 (vision 팀)
 
@@ -29,7 +29,7 @@
 
 | 함수 | 지금 | 연결할 것 |
 |---|---|---|
-| `perspective_step(image, quad)` | leaf-vision 원근 보정 | 그대로 |
+| `perspective_step(image, quad)` | scanshelf-vision 원근 보정 | 그대로 |
 | `split_step(image, layout)` | 가운데에서 자르는 자리표시 | 접힌 선 찾기 |
 | `dewarp_step(image, Dewarp)` | 그대로 돌려줌 | UVDoc 계열 ONNX |
 | `remove_fingers_step(image)` | 그대로 돌려줌 | 손 검출 + 인페인팅 |
@@ -75,7 +75,7 @@
 합성 문서를 보관함에 만들고 앱을 켭니다.
 
 ```sh
-LEAF_SAMPLE_LIBRARY="$HOME/Library/Application Support/com.nobel6018.leaf/library" \
-  cargo test -p leaf -- --ignored 합성_예시
+SCANSHELF_SAMPLE_LIBRARY="$HOME/Library/Application Support/com.nobel6018.scanshelf/library" \
+  cargo test -p scanshelf -- --ignored 합성_예시
 pnpm tauri dev
 ```

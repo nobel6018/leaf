@@ -1,9 +1,9 @@
-"""UVDoc(MIT) 가중치를 ONNX로 내보낸다. leaf-vision 곡면 보정 모델.
+"""UVDoc(MIT) 가중치를 ONNX로 내보낸다. scanshelf-vision 곡면 보정 모델.
 
 입력: image [1, 3, 712, 488] float32, RGB 0~1
 출력: grid [1, 2, 45, 31] float32, 정규화 좌표(-1~1, x 먼저). grid_sample(align_corners=True)용 역방향 좌표
 
-사용법은 docs/vision.md, 모델 목록은 crates/leaf-vision/src/models.rs.
+사용법은 docs/vision.md, 모델 목록은 crates/scanshelf-vision/src/models.rs.
 @see docs/vision.md
 """
 

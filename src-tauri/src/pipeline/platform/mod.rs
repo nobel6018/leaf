@@ -5,7 +5,7 @@
 use std::path::{Path, PathBuf};
 
 use image::RgbImage;
-use leaf_core::Quad;
+use scanshelf_core::Quad;
 
 #[cfg(target_os = "macos")]
 mod macos;

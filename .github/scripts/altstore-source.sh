@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# AltStore 소스(apps.json)를 만든다. release.yml ios 작업이 leaf-ios.ipa와 함께 Release에 올린다.
+# AltStore 소스(apps.json)를 만든다. release.yml ios 작업이 scanshelf-ios.ipa와 함께 Release에 올린다.
 # 소스 URL은 releases/latest/download/apps.json으로 고정이라 AltStore가 늘 최신 Release를 읽는다(docs/release.md).
 #
 # AltStore는 소스에 적은 권한이 받은 ipa와 다르면 설치를 거부한다.
 # 그래서 버전과 권한(…UsageDescription)은 손으로 적지 않고 빌드된 .app의 Info.plist에서 읽는다.
 # 서명 없이 빌드하므로 바이너리에 entitlements가 없다(빈 배열)
 #
-# 쓰기: altstore-source.sh <leaf.app> <leaf-ios.ipa> <태그> > apps.json
+# 쓰기: altstore-source.sh <scanshelf.app> <scanshelf-ios.ipa> <태그> > apps.json
 set -euo pipefail
 app=$1 ipa=$2 tag=$3
 : "${GITHUB_REPOSITORY:?}"
@@ -44,7 +44,7 @@ jq -n \
   --arg website "$repo_url" \
   --argjson privacy "$privacy" \
   '{
-    name: "leaf",
+    name: "scanshelf",
     subtitle: "거치대 스캔, Mac 보정과 OCR",
     iconURL: $icon,
     website: $website,
@@ -52,11 +52,11 @@ jq -n \
     nsfw: false,
     news: [],
     apps: [{
-      name: "leaf",
+      name: "scanshelf",
       bundleIdentifier: $bundle,
       developerName: "nobel6018",
       subtitle: "거치대에 올리고 종이만 바꿔 놓으면 찍힙니다",
-      localizedDescription: "문서, 책, 팜플렛을 거치대에서 자동으로 찍어 같은 Wi-Fi의 Mac이나 iCloud Drive로 보냅니다. 보정, OCR, AI 정리는 Mac의 leaf가 합니다.",
+      localizedDescription: "문서, 책, 팜플렛을 거치대에서 자동으로 찍어 같은 Wi-Fi의 Mac이나 iCloud Drive로 보냅니다. 보정, OCR, AI 정리는 Mac의 scanshelf가 합니다.",
       iconURL: $icon,
       tintColor: "#4F7A3A",
       category: "productivity",

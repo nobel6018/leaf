@@ -1,4 +1,4 @@
-// Rust 쪽 직렬화 모양과 같다. 원본: crates/leaf-core, src-tauri/src/{library,search,export}.rs, transfer, inbox
+// Rust 쪽 직렬화 모양과 같다. 원본: crates/scanshelf-core, src-tauri/src/{library,search,export}.rs, transfer, inbox
 export type DocumentKind = "pamphlet" | "book" | "document";
 export type PageLayout = "single" | "spread" | "trifold";
 export type PagePart = "whole" | "left" | "right" | { panel: number };
@@ -197,7 +197,7 @@ export interface InboxStatus {
   pending: number;
 }
 
-// 단축키, leaf:// 링크, 가져오기 (src-tauri/src/actions.rs, import.rs)
+// 단축키, scanshelf:// 링크, 가져오기 (src-tauri/src/actions.rs, import.rs)
 export type AppAction =
   | { type: "showWindow" }
   | { type: "open"; id: string; page: number | null }

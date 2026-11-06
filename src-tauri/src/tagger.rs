@@ -10,11 +10,11 @@ use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 use std::sync::Mutex;
 
-use leaf_ai::LlmConfig;
-use leaf_ai::document::LoadedDocument;
-use leaf_core::DocumentKind;
-use leaf_core::overrides::Edits;
-use leaf_core::tags::normalize_tags;
+use scanshelf_ai::LlmConfig;
+use scanshelf_ai::document::LoadedDocument;
+use scanshelf_core::DocumentKind;
+use scanshelf_core::overrides::Edits;
+use scanshelf_core::tags::normalize_tags;
 use serde::{Deserialize, Serialize};
 use tauri::Emitter;
 
@@ -165,7 +165,7 @@ struct RawAnswer {
 
 /// AI 답에서 태그를 읽어 정리한다. 코드 블록이나 앞뒤 설명이 붙어도 읽는다
 pub fn parse_answer(answer: &str) -> Result<Vec<String>, String> {
-    let json = leaf_ai::json::extract_json_object(answer).ok_or_else(|| format!("AI 답에 JSON이 없습니다: {}", head(answer.trim(), 200)))?;
+    let json = scanshelf_ai::json::extract_json_object(answer).ok_or_else(|| format!("AI 답에 JSON이 없습니다: {}", head(answer.trim(), 200)))?;
     let parsed: RawAnswer = serde_json::from_str(json).map_err(|e| format!("AI 답을 읽지 못했습니다: {e}"))?;
     let stripped: Vec<String> = normalize_tags(&parsed.tags)
         .iter()
@@ -184,7 +184,7 @@ pub fn suggest_for_dir(library: &Path, dir: &Path, llm: &LlmConfig) -> Result<Ta
         return Err("아직 읽은 글자가 없어 태그를 고를 수 없습니다".into());
     }
     let prompt = build_prompt(&doc, &vocabulary(library, dir));
-    let answer = leaf_ai::cli::run_prompt(llm, &prompt).map_err(|e| e.to_string())?;
+    let answer = scanshelf_ai::cli::run_prompt(llm, &prompt).map_err(|e| e.to_string())?;
     let tags = parse_answer(&answer)?;
     let _lock = EDITS_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let mut edits = Edits::load(dir).map_err(|e| e.to_string())?;

@@ -62,11 +62,11 @@ jobs:
           # macOS 기본 bash는 3.2라 mapfile이 없다(쓰면 dmg가 조용히 빠진다)
           files=()
           while IFS= read -r -d '' f; do files+=("$f"); done < <(find target/release/bundle -type f -name '*.dmg' -print0)
-          # 업데이트 파일은 이름이 leaf.app.tar.gz로 고정이라 버전과 아키텍처를 붙여 올린다
-          app=target/release/bundle/macos/leaf.app.tar.gz
-          cp "$app" "leaf_${TAG#v}_aarch64.app.tar.gz"
-          cp "$app.sig" "leaf_${TAG#v}_aarch64.app.tar.gz.sig"
-          files+=("leaf_${TAG#v}_aarch64.app.tar.gz" "leaf_${TAG#v}_aarch64.app.tar.gz.sig")
+          # 업데이트 파일은 이름이 scanshelf.app.tar.gz로 고정이라 버전과 아키텍처를 붙여 올린다
+          app=target/release/bundle/macos/scanshelf.app.tar.gz
+          cp "$app" "scanshelf_${TAG#v}_aarch64.app.tar.gz"
+          cp "$app.sig" "scanshelf_${TAG#v}_aarch64.app.tar.gz.sig"
+          files+=("scanshelf_${TAG#v}_aarch64.app.tar.gz" "scanshelf_${TAG#v}_aarch64.app.tar.gz.sig")
           .github/scripts/upload-release.sh "${files[@]}"
 
   updater:
@@ -97,30 +97,30 @@ jobs:
         working-directory: ios
         run: |
           xcodegen generate
-          xcodebuild build -project Leaf.xcodeproj -scheme Leaf -configuration Release \
+          xcodebuild build -project Scanshelf.xcodeproj -scheme Scanshelf -configuration Release \
             -destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO
       - name: .ipa로 묶기
         run: |
-          app=ios/build/Build/Products/Release-iphoneos/Leaf.app
+          app=ios/build/Build/Products/Release-iphoneos/Scanshelf.app
           test -d "$app"
           # 아이콘이 없어도 빌드는 성공하고 기기에 빈 격자 아이콘으로 설치된다. 여기서 막는다
           test -f "$app/Assets.car"
           /usr/bin/plutil -extract CFBundleIcons.CFBundlePrimaryIcon.CFBundleIconName raw -o - "$app/Info.plist" | grep -qx AppIcon
-          mkdir -p ipa/Payload && cp -R "$app" ipa/Payload/leaf.app
-          (cd ipa && zip -qry ../leaf-ios.ipa Payload)
-          ls -la leaf-ios.ipa
+          mkdir -p ipa/Payload && cp -R "$app" ipa/Payload/scanshelf.app
+          (cd ipa && zip -qry ../scanshelf-ios.ipa Payload)
+          ls -la scanshelf-ios.ipa
       - name: AltStore 소스 만들기
         env:
           TAG: ${{ github.ref_name }}
         run: |
-          .github/scripts/altstore-source.sh ipa/Payload/leaf.app leaf-ios.ipa "$TAG" > apps.json
+          .github/scripts/altstore-source.sh ipa/Payload/scanshelf.app scanshelf-ios.ipa "$TAG" > apps.json
           cat apps.json
       - name: Release에 올리기
         if: env.IS_TAG == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
-        run: .github/scripts/upload-release.sh leaf-ios.ipa apps.json
+        run: .github/scripts/upload-release.sh scanshelf-ios.ipa apps.json
 
   publish:
     needs: [desktop, updater, ios]

@@ -7,7 +7,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use leaf_vision::models::{MODELS, verify};
+use scanshelf_vision::models::{MODELS, verify};
 use serde::Serialize;
 use tauri::{Emitter, Manager};
 
@@ -22,10 +22,10 @@ pub fn models_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 }
 
 /// 처리 단계가 쓰는 모델 묶음. 확인을 통과한 파일만 넘긴다(받다 만 파일을 ONNX Runtime이 읽지 않게)
-pub fn load(app: &tauri::AppHandle) -> leaf_vision::Models {
+pub fn load(app: &tauri::AppHandle) -> scanshelf_vision::Models {
     match models_dir(app) {
-        Ok(dir) => leaf_vision::Models::new(dir),
-        Err(_) => leaf_vision::Models::none(),
+        Ok(dir) => scanshelf_vision::Models::new(dir),
+        Err(_) => scanshelf_vision::Models::none(),
     }
 }
 

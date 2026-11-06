@@ -4,9 +4,9 @@
 use std::path::Path;
 
 use image::{Rgb, RgbImage};
-use leaf_core::ocr::OcrPage;
-use leaf_core::processing::Processing;
-use leaf_vision::perspective::{Homography, PixelPoint};
+use scanshelf_core::ocr::OcrPage;
+use scanshelf_core::processing::Processing;
+use scanshelf_vision::perspective::{Homography, PixelPoint};
 use objc2_core_foundation::{
     CFAttributedString, CFDictionary, CFNumber, CFString, CFType, CFURL, CGPoint, CGRect, CGSize,
 };
@@ -133,7 +133,7 @@ fn 합성_문서를_처리하고_검색과_pdf_텍스트까지_나온다() {
         cache: cache.path(),
         io_lock: &io_lock,
         force: false,
-        models: &leaf_vision::Models::none(),
+        models: &scanshelf_vision::Models::none(),
         on_progress: &on_progress,
     };
     let processing: Processing = process_document(&ctx).unwrap();
@@ -152,7 +152,7 @@ fn 합성_문서를_처리하고_검색과_pdf_텍스트까지_나온다() {
 
     // 바뀐 것이 없으면 다시 처리하지 않는다
     progress.lock().unwrap().clear();
-    let manifest_loaded = leaf_core::Manifest::load(&dir).unwrap();
+    let manifest_loaded = scanshelf_core::Manifest::load(&dir).unwrap();
     assert_eq!(super::stale_pages(&dir, cache.path(), &manifest_loaded, &processing), 0);
     process_document(&ctx).unwrap();
     assert!(!progress.lock().unwrap().contains(&"decode"));
@@ -173,8 +173,8 @@ fn 합성_문서를_처리하고_검색과_pdf_텍스트까지_나온다() {
     assert!(std::fs::read_to_string(txt).unwrap().starts_with("[1쪽]"));
     let zip = crate::export::export_to_dir(&dir, crate::export::ExportFormat::Jpg).unwrap();
     assert!(std::fs::metadata(zip).unwrap().len() > 10_000);
-    if std::env::var_os("LEAF_KEEP_E2E").is_some() {
-        let keep = std::env::temp_dir().join("leaf-e2e");
+    if std::env::var_os("SCANSHELF_KEEP_E2E").is_some() {
+        let keep = std::env::temp_dir().join("scanshelf-e2e");
         let _ = std::fs::remove_dir_all(&keep);
         std::fs::create_dir_all(&keep).unwrap();
         std::fs::copy(&pdf, keep.join("e2e.pdf")).unwrap();
@@ -183,11 +183,11 @@ fn 합성_문서를_처리하고_검색과_pdf_텍스트까지_나온다() {
     }
 }
 
-/// 앱을 직접 띄워 볼 때 쓰는 합성 문서 만들기. 실행: LEAF_SAMPLE_LIBRARY=<보관함 폴더> cargo test -p leaf -- --ignored 합성_예시
+/// 앱을 직접 띄워 볼 때 쓰는 합성 문서 만들기. 실행: SCANSHELF_SAMPLE_LIBRARY=<보관함 폴더> cargo test -p scanshelf -- --ignored 합성_예시
 #[test]
 #[ignore]
 fn 합성_예시_문서를_보관함에_만든다() {
-    let Some(library) = std::env::var_os("LEAF_SAMPLE_LIBRARY") else {
+    let Some(library) = std::env::var_os("SCANSHELF_SAMPLE_LIBRARY") else {
         return;
     };
     let library = std::path::PathBuf::from(library);

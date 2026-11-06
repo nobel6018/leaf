@@ -5,7 +5,7 @@
 //!
 //! @see docs/ocr.md
 
-use leaf_core::ocr::{BlockKind, OcrBlock, OcrLine, OcrPage, Rect};
+use scanshelf_core::ocr::{BlockKind, OcrBlock, OcrLine, OcrPage, Rect};
 
 /// 목록 줄 머리표. 가운뎃점은 U+00B7, U+2022 둘 다 쓰인다
 const BULLETS: [char; 8] = ['\u{2022}', '\u{00B7}', '-', '*', '\u{25AA}', '\u{25A0}', '\u{25CF}', '\u{2013}'];

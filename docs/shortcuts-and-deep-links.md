@@ -1,9 +1,9 @@
-# 단축키, leaf:// 링크, 빠른 찾기
+# 단축키, scanshelf:// 링크, 빠른 찾기
 
-앱 밖에서 들어오는 요청(leaf:// 링크, Finder의 "다음으로 열기", 파일 메뉴)은 모두 같은 길로 화면에 전달됩니다. 앱 안 단축키와 다른 화면이 보내는 명령은 `runCommand` 하나로 모입니다.
+앱 밖에서 들어오는 요청(scanshelf:// 링크, Finder의 "다음으로 열기", 파일 메뉴)은 모두 같은 길로 화면에 전달됩니다. 앱 안 단축키와 다른 화면이 보내는 명령은 `runCommand` 하나로 모입니다.
 
 ```
-leaf:// 링크 ──┐
+scanshelf:// 링크 ──┐
 파일 열기 ─────┼─> actions::dispatch ──(app-action 이벤트)──> App.handleAction
 파일 메뉴 ─────┘
 앱 안 단축키 ──> matchShortcut ──┐
@@ -59,26 +59,26 @@ useEffect(() => registerCommand("openAsk", () => setAskOpen(true)), []);
 
 | 동작 | macOS |
 |---|---|
-| leaf 창 앞으로 | ⌥⇧⌘L (`actions::SHOW_WINDOW_SHORTCUT`) |
+| scanshelf 창 앞으로 | ⌥⇧⌘L (`actions::SHOW_WINDOW_SHORTCUT`) |
 
 다른 앱이 이미 쓰는 조합이면 등록이 실패하고, 화면이 준비될 때 이유를 알립니다. 지금은 바꾸는 설정이 없습니다.
 
-## leaf:// 링크
+## scanshelf:// 링크
 
 | 링크 | 동작 |
 |---|---|
-| `leaf://open/<문서 id>` | 문서를 엶 |
-| `leaf://open/<문서 id>?page=3` | 문서의 3쪽을 엶. 쪽은 1부터, 화면 순서(원본 쪽 순서, 펼친 면은 왼쪽부터) |
-| `leaf://open?id=<문서 id>&page=3` | 위와 같음 |
-| `leaf://search?q=<검색어>` | 빠른 찾기 창을 그 검색어로 엶 |
-| `leaf://show` | 창 앞으로 |
+| `scanshelf://open/<문서 id>` | 문서를 엶 |
+| `scanshelf://open/<문서 id>?page=3` | 문서의 3쪽을 엶. 쪽은 1부터, 화면 순서(원본 쪽 순서, 펼친 면은 왼쪽부터) |
+| `scanshelf://open?id=<문서 id>&page=3` | 위와 같음 |
+| `scanshelf://search?q=<검색어>` | 빠른 찾기 창을 그 검색어로 엶 |
+| `scanshelf://show` | 창 앞으로 |
 
-모든 링크는 창을 앞으로 가져옵니다. MCP 서버, Raycast, 단축어(Shortcuts)가 `open "leaf://open/<id>?page=2"`로 씁니다.
+모든 링크는 창을 앞으로 가져옵니다. MCP 서버, Raycast, 단축어(Shortcuts)가 `open "scanshelf://open/<id>?page=2"`로 씁니다.
 
 - 문서 id는 UUID만 받습니다. 아니면 링크를 버립니다. `page`가 0이거나 숫자가 아니면 첫 쪽을 엽니다
-- 화면을 보여 주기만 하고 데이터를 바꾸지 않아 토큰을 받지 않습니다. 웹 페이지도 `leaf://` 링크를 열 수 있으므로, 지우기, 가져오기, 내보내기처럼 데이터를 바꾸거나 이 컴퓨터의 파일을 읽는 링크는 만들지 않았습니다. 필요해지면 데이터 폴더의 600 권한 파일에 둔 토큰을 링크에 요구하는 방식을 먼저 붙입니다
+- 화면을 보여 주기만 하고 데이터를 바꾸지 않아 토큰을 받지 않습니다. 웹 페이지도 `scanshelf://` 링크를 열 수 있으므로, 지우기, 가져오기, 내보내기처럼 데이터를 바꾸거나 이 컴퓨터의 파일을 읽는 링크는 만들지 않았습니다. 필요해지면 데이터 폴더의 600 권한 파일에 둔 토큰을 링크에 요구하는 방식을 먼저 붙입니다
 - 링크로 앱을 처음 띄우면 화면이 준비되기 전에 링크가 도착합니다. Rust가 요청을 보관했다가, 화면이 `app-action` 구독을 마치고 `frontend_ready`를 부를 때 넘깁니다
-- macOS에서는 설치된 앱(.app)만 링크를 받습니다. `pnpm tauri dev`로는 시험할 수 없습니다. `pnpm tauri build --debug --bundles app`으로 묶은 뒤 `open "leaf://search?q=로봇"`으로 시험합니다
+- macOS에서는 설치된 앱(.app)만 링크를 받습니다. `pnpm tauri dev`로는 시험할 수 없습니다. `pnpm tauri build --debug --bundles app`으로 묶은 뒤 `open "scanshelf://search?q=로봇"`으로 시험합니다
 
 플러그인은 검증한 버전으로 고정합니다(`tauri-plugin-deep-link =2.6.2`, `tauri-plugin-single-instance =2.5.4`, `tauri-plugin-global-shortcut =2.4.1`). 두 번째 실행은 single-instance가 가로채 첫 창에 넘깁니다.
 

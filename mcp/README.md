@@ -1,6 +1,6 @@
-# leaf MCP 서버
+# scanshelf MCP 서버
 
-Claude Code, Claude 데스크톱 같은 MCP 클라이언트에서 leaf로 스캔한 문서(책, 문서, 팜플렛)를 찾고 읽습니다. 읽기만 하고, Mac 앱이 꺼져 있어도 됩니다. 자세한 규칙과 한계는 [docs/mcp.md](../docs/mcp.md)에 있습니다.
+Claude Code, Claude 데스크톱 같은 MCP 클라이언트에서 scanshelf로 스캔한 문서(책, 문서, 팜플렛)를 찾고 읽습니다. 읽기만 하고, Mac 앱이 꺼져 있어도 됩니다. 자세한 규칙과 한계는 [docs/mcp.md](../docs/mcp.md)에 있습니다.
 
 | 도구 | 하는 일 |
 |---|---|
@@ -22,7 +22,7 @@ npm run build
 Claude Code에 등록합니다.
 
 ```sh
-claude mcp add leaf --scope user -- node "$PWD/dist/index.js"
+claude mcp add scanshelf --scope user -- node "$PWD/dist/index.js"
 ```
 
 Claude 데스크톱은 설정 파일(`claude_desktop_config.json`)의 `mcpServers`에 넣습니다.
@@ -30,12 +30,12 @@ Claude 데스크톱은 설정 파일(`claude_desktop_config.json`)의 `mcpServer
 ```json
 {
   "mcpServers": {
-    "leaf": { "command": "node", "args": ["/절대/경로/leaf/mcp/dist/index.js"] }
+    "scanshelf": { "command": "node", "args": ["/절대/경로/scanshelf/mcp/dist/index.js"] }
   }
 }
 ```
 
-보관함은 `~/Library/Application Support/com.nobel6018.leaf/library/`를 읽습니다. 다른 곳을 읽게 하려면 `LEAF_LIBRARY_DIR` 환경 변수에 보관함 폴더를 줍니다.
+보관함은 `~/Library/Application Support/com.nobel6018.scanshelf/library/`를 읽습니다. 다른 곳을 읽게 하려면 `SCANSHELF_LIBRARY_DIR` 환경 변수에 보관함 폴더를 줍니다.
 
 ## 개발
 

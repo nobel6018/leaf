@@ -8,7 +8,7 @@ base="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG"
 dir=$(mktemp -d)
 gh release download "$TAG" --repo "$GITHUB_REPOSITORY" -D "$dir" -p '*.sig'
 
-mac="leaf_${version}_aarch64.app.tar.gz"
+mac="scanshelf_${version}_aarch64.app.tar.gz"
 if [ ! -f "$dir/$mac.sig" ]; then echo "$mac.sig가 없습니다"; exit 1; fi
 jq -n --arg v "$version" --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   --arg notes "https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG" \

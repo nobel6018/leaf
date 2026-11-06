@@ -19,10 +19,10 @@ Mac은 받은 원본으로 모든 처리를 합니다. 원본은 지우지 않�
 
 | 경로 | 내용 |
 |---|---|
-| `crates/leaf-core/` | 문서 형식(`Manifest`, `Page`, `Quad`). 읽기, 검증, 원자적 저장 |
+| `crates/scanshelf-core/` | 문서 형식(`Manifest`, `Page`, `Quad`). 읽기, 검증, 원자적 저장 |
 | `src-tauri/` | Mac 앱 Rust 쪽. `library.rs`가 보관함 조회 |
 | `src/` | Mac 앱 화면(React) |
-| `ios/` | iPhone 앱(SwiftUI). `Leaf/Manifest.swift`가 문서 형식의 Swift 정의 |
+| `ios/` | iPhone 앱(SwiftUI). `Scanshelf/Manifest.swift`가 문서 형식의 Swift 정의 |
 | `fixtures/` | 합성 예시 데이터. Rust와 Swift 테스트가 같이 읽는다 |
 
 ## 기술 선택
