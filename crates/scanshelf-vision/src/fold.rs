@@ -33,6 +33,14 @@ const BANDS: usize = 4;
 /// 접힌 선을 찾는 구간(폭 대비). 첫 선은 1/3, 둘째 선은 2/3 근처
 const LEFT_RANGE: (f32, f32) = (0.2, 0.47);
 const RIGHT_RANGE: (f32, f32) = (0.53, 0.8);
+/// 펼친 책의 접힌 선을 찾는 구간
+pub(crate) const CENTER_RANGE: (f32, f32) = (0.35, 0.65);
+/// 이보다 약하면 접은 자국으로 보지 않는다(종이 밝기 대비)
+const MIN_CENTER_CREASE: f32 = 0.03;
+/// 이보다 얕으면 그림자 골짜기로 보지 않는다(종이 밝기 대비)
+const MIN_CENTER_VALLEY: f32 = 0.06;
+/// 이보다 깊으면 책이 크게 휜 것으로 보고 골짜기를 바로 믿는다
+const DEEP_CENTER_VALLEY: f32 = 0.2;
 
 /// 원본 해상도 기준 접힌 선 하나. 위쪽 끝 x와 아래쪽 끝 x로 기울기를 표현한다
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -167,6 +175,61 @@ pub fn cut_panels(img: &RgbImage, folds: &Folds) -> [RgbImage; 3] {
     [panel(0.0, lt, lb, 0.0), panel(lt, rt, rb, lb), panel(rt, wf, wf, rb)]
 }
 
+/// 펼친 책 가운데의 접은 자국을 찾는다. 빈 띠는 보지 않는다. 표의 칸 사이도 글자 없는 띠라 그걸 믿으면 표가 잘린다.
+/// 자국은 위에서 아래까지 이어지고 표의 빈 칸에는 없으므로 둘을 가른다. 뚜렷하지 않으면 None.
+/// 돌려주는 값: (기울기 도, 분석 해상도 기준 가운데 높이의 x)
+pub(crate) fn find_center_crease(g: &Plane, paper: f32) -> Option<(f32, f32)> {
+    let n = (MAX_TILT_DEG / TILT_STEP_DEG).round() as i32;
+    let tilts: Vec<f32> = (-n..=n).map(|i| i as f32 * TILT_STEP_DEG).collect();
+    let profiles: Vec<TiltProfile> = tilts.par_iter().map(|&deg| tilt_profile(g, deg, paper)).collect();
+    let w = g.width;
+    let lo = (CENTER_RANGE.0 * w as f32) as usize;
+    let hi = (CENTER_RANGE.1 * w as f32) as usize;
+    // 책은 거의 가운데에서 접힌다. 같은 세기면 가운데에 가까운 선을 고른다
+    let prior = |x: usize| 1.0 - 0.5 * ((x as f32 / w as f32 - 0.5).abs() / 0.12).min(1.0);
+    // 넓은 그림자 골짜기: 글자를 뺀 종이 밝기라 표의 칸 사이에는 생기지 않는다. 보이면 가장 어두운 곳이 접힌 곳이다
+    let reach = (w as f32 * 0.12) as usize;
+    let valley = profiles
+        .iter()
+        .flat_map(|t| {
+            let paper_line = &t.paper;
+            (lo..hi).map(move |x| {
+                let v = paper_line[x];
+                let side = |range: &[f32]| fmax(range).unwrap_or(f32::NAN);
+                let left = side(&paper_line[x.saturating_sub(reach)..x]);
+                let right = side(&paper_line[x + 1..(x + reach + 1).min(paper_line.len())]);
+                (t.deg, x, (left.min(right) - v) / paper)
+            })
+        })
+        .filter(|c| c.2.is_finite())
+        .map(|(deg, x, depth)| (deg, x, depth * prior(x)))
+        .max_by(|a, b| a.2.total_cmp(&b.2).then((-a.0.abs()).total_cmp(&-b.0.abs())));
+    // 깊은 그림자는 책이 크게 휜 사진이다. 가장 어두운 곳이 접힌 곳이고 자국 단서는 그림자 비탈에서 잘못 잡힌다
+    if let Some((deg, x, depth)) = valley
+        && depth >= DEEP_CENTER_VALLEY
+    {
+        return Some((deg, x as f32));
+    }
+    let crease_at = |range: std::ops::Range<usize>| {
+        profiles
+            .iter()
+            .flat_map(|t| range.clone().map(move |x| (t.deg, x, t.crease[x])))
+            .map(|(deg, x, crease)| (deg, x, crease * prior(x)))
+            .max_by(|a, b| a.2.total_cmp(&b.2).then((-a.0.abs()).total_cmp(&-b.0.abs())))
+    };
+    let (deg, x, score) = crease_at(lo..hi)?;
+    if score >= MIN_CENTER_CREASE {
+        return Some((deg, x as f32));
+    }
+    // 자국이 약하면 얕은 골짜기로 자리만 좁히고, 그 근처에서 가장 뚜렷한 자국을 고른다. 골짜기는 넓어서 위치가 부정확하다
+    let (_, valley_x, depth) = valley?;
+    if depth < MIN_CENTER_VALLEY {
+        return None;
+    }
+    let near = (w as f32 * 0.06) as usize;
+    crease_at(valley_x.saturating_sub(near).max(lo)..(valley_x + near).min(hi)).map(|(deg, x, _)| (deg, x as f32))
+}
+
 /// 기울기 하나에서 낸 단면들
 struct TiltProfile {
     deg: f32,
@@ -174,6 +237,8 @@ struct TiltProfile {
     crease: Vec<f32>,
     /// 글자 화소 비율(높이 전체)
     ink: Vec<f32>,
+    /// 글자를 뺀 종이 밝기(띠 평균). 그림자 골짜기를 본다
+    paper: Vec<f32>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -247,7 +312,14 @@ fn tilt_profile(g: &Plane, deg: f32, paper: f32) -> TiltProfile {
             s[1]
         })
         .collect();
-    TiltProfile { deg, crease, ink: columns.iter().map(|c| c.1).collect() }
+    let paper_line: Vec<f32> = columns
+        .iter()
+        .map(|c| {
+            let vals: Vec<f32> = c.0.iter().copied().filter(|v| v.is_finite()).collect();
+            if vals.is_empty() { f32::NAN } else { vals.iter().sum::<f32>() / vals.len() as f32 }
+        })
+        .collect();
+    TiltProfile { deg, crease, ink: columns.iter().map(|c| c.1).collect(), paper: smooth(&paper_line, (w / 200).max(1)) }
 }
 
 /// 접은 자국 점수: 가는 골짜기(어두운 자국), 가는 봉우리(빛 받은 자국), 밝기 계단(면마다 다른 기울기) 중 큰 값

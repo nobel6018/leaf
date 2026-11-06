@@ -58,6 +58,45 @@ fn 펼친_책을_두_페이지로_나눈다() {
     }
 }
 
+/// 표가 있는 펼친 면: 왼쪽 페이지 표에 칸 사이 빈 띠가 있고, 접은 자국은 가운데 가는 선과 밝기 차이뿐이다
+fn spread_with_table(fold_x: u32) -> RgbImage {
+    let (w, h) = (2000u32, 1400u32);
+    RgbImage::from_fn(w, h, |x, y| {
+        let paper = if x < fold_x { 205u8 } else { 235u8 };
+        let in_table = (150..1250).contains(&y);
+        // 칸 사이(760~860)만 비운 표. 칸 안은 글줄 무늬
+        let cell = (100..760).contains(&x) || (860..fold_x.saturating_sub(60)).contains(&x) || (fold_x + 60..w - 100).contains(&x);
+        if in_table && cell && y % 30 < 6 {
+            return Rgb([40, 40, 40]);
+        }
+        if x.abs_diff(fold_x) <= 2 {
+            return Rgb([150, 150, 150]);
+        }
+        Rgb([paper, paper, paper])
+    })
+}
+
+#[test]
+fn 표의_칸_사이가_아니라_접은_자국에서_나눈다() {
+    let img = spread_with_table(1000);
+
+    let g = find_gutter(&img);
+
+    assert!(g.confidence >= MIN_CONFIDENCE, "{g:?}");
+    assert!((g.center_x() - 1000.0).abs() < 12.0, "표 빈 칸(810)이 아니라 접은 자국(1000)이어야 한다: {g:?}");
+}
+
+#[test]
+fn 자국이_없고_가운데에서_먼_빈_띠로는_나누지_않는다() {
+    // 접은 자국 없이 왼쪽으로 치우친 넓은 빈 칸만 있는 사진
+    let img = RgbImage::from_fn(2000, 1400, |x, y| {
+        let filled = ((100..650).contains(&x) || (800..1900).contains(&x)) && (150..1250).contains(&y);
+        if filled && y % 30 < 6 { Rgb([40, 40, 40]) } else { Rgb([235, 235, 235]) }
+    });
+
+    assert!(matches!(split_spread(&img), Split::Single { .. }));
+}
+
 #[test]
 fn 한_페이지는_그대로_둔다() {
     let page = render_page(700, 1000, 9);

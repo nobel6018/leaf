@@ -12,6 +12,7 @@
 use image::RgbImage;
 use rayon::prelude::*;
 
+use crate::fold::{CENTER_RANGE, find_center_crease};
 use crate::util::{Plane, downscale_area, fit_long_side, luma, sample_rgb};
 
 /// 이보다 낮으면 한 페이지로 본다
@@ -21,6 +22,10 @@ const MAX_TILT_DEG: f32 = 8.0;
 const TILT_STEP_DEG: f32 = 0.5;
 /// 분석 해상도. 접힌 선은 굵은 구조라 이 정도면 충분하다
 const ANALYSIS_LONG_SIDE: u32 = 1000;
+/// 접은 자국을 찾았을 때의 신뢰도(가로세로 비를 곱하기 전)
+const CREASE_CONFIDENCE: f32 = 0.9;
+/// 자국이 없을 때 믿어 주는 가운데에서의 거리(폭 대비)
+const MAX_OFF_CENTER_WITHOUT_CREASE: f32 = 0.05;
 
 /// 원본 해상도 기준 접힌 선. 위쪽 끝 x와 아래쪽 끝 x로 기울기를 표현한다
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -97,7 +102,7 @@ pub fn find_gutter(img: &RgbImage) -> Gutter {
     let aspect = w as f32 / h as f32;
     // 펼친 책은 가로가 길다(보통 1.3~1.5). 세로로 긴 사진은 한 페이지일 가능성이 크다
     let aspect_factor = ((aspect - 0.75) / 0.35).clamp(0.2, 1.0);
-    let confidence = valley_conf.max(blank_conf) * aspect_factor;
+    let mut confidence = valley_conf.max(blank_conf) * aspect_factor;
 
     // 접힌 선 그림자는 두 페이지 여백 사이에 있다. 빈 띠가 뚜렷한데 골짜기가 그 밖이면(글자 덩어리 사이 골 등) 띠를 믿는다
     let in_band = valley.x >= gap_start && valley.x < gap_end;
@@ -105,6 +110,21 @@ pub fn find_gutter(img: &RgbImage) -> Gutter {
         (gap_start + gap_end) as f32 / 2.0
     } else {
         valley.x as f32
+    };
+    // 접은 자국이 보이면 그 선을 믿는다. 그림자 골짜기와 빈 띠는 표의 칸 사이에도 생겨 실제 문서에서 표를 잘랐다
+    let (deg, center_small) = match find_center_crease(&g, paper) {
+        Some((crease_deg, crease_x)) => {
+            confidence = confidence.max(CREASE_CONFIDENCE * aspect_factor);
+            (crease_deg, crease_x)
+        }
+        None => {
+            // 자국 없이 가운데에서 많이 벗어난 후보는 나누지 않는다. 잘못 자르면 내용이 망가지고, 안 나누면 한 장으로 남을 뿐이다
+            let at = center_small / w as f32;
+            if !(CENTER_RANGE.0..=CENTER_RANGE.1).contains(&at) || (at - 0.5).abs() > MAX_OFF_CENTER_WITHOUT_CREASE {
+                confidence = confidence.min(MIN_CONFIDENCE * 0.5);
+            }
+            (deg, center_small)
+        }
     };
     let scale = img.width() as f32 / w as f32;
     let tan = deg.to_radians().tan();
