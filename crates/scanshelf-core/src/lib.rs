@@ -115,6 +115,10 @@ pub struct Manifest {
     pub session: Option<String>,
     pub created_at: DateTime<Utc>,
     pub pages: Vec<Page>,
+    /// iPhone이 저장할 때마다 1씩 올리는 번호. Wi-Fi와 iCloud로 순서가 뒤바뀌어 도착해도 옛 manifest가 새것을 덮지 않게 한다.
+    /// 옛 앱이 만든 문서에는 없고 없으면 0으로 본다. 없어도 읽을 수 있어 schemaVersion은 그대로 둔다
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub revision: Option<u64>,
 }
 
 impl Manifest {
