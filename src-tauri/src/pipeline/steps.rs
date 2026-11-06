@@ -18,6 +18,9 @@ pub const MAX_OUTPUT_SIDE: u32 = 4000;
 
 /// 꼭짓점이 사진 모서리에 거의 붙어 있으면 원근 보정을 건너뛴다(감지 실패 대신 사진 전체가 잡힌 경우)
 const FULL_FRAME_TOLERANCE: f64 = 0.004;
+const AUTO_SPREAD_MIN_ASPECT: f32 = 1.15;
+const AUTO_SPREAD_MIN_CONFIDENCE: f32 = 0.8;
+const AUTO_SPREAD_MAX_OFF_CENTER: f32 = 0.08;
 
 pub struct CorrectInput<'a> {
     pub image: RgbImage,
@@ -29,6 +32,8 @@ pub struct CorrectInput<'a> {
     pub detect_rotation: &'a dyn Fn(&RgbImage) -> Option<u16>,
     /// 자동 회전 뒤에 사람이 더 돌린 각도
     pub extra_rotation: u16,
+    /// 문서 대부분이 펼친 사진이라 "한 쪽"으로 찍힌 장도 접은 자국이 뚜렷하면 나눈다
+    pub auto_spread: bool,
 }
 
 /// 글자로 방향을 정하지 못한 펼침, 접지는 가로로 긴 쪽이 맞으므로 세로로 서 있으면 눕힌다
@@ -48,6 +53,20 @@ pub fn rotate_step(
     }
 }
 
+/// 사람이 고르지 않은 한 쪽 사진이 실제로는 펼침인지. 잘못 나누면 내용이 잘리므로 조건을 좁게 둔다
+fn effective_layout(image: &RgbImage, layout: PageLayout, auto_spread: bool) -> PageLayout {
+    if layout != PageLayout::Single || !auto_spread || (image.width() as f32) < image.height() as f32 * AUTO_SPREAD_MIN_ASPECT {
+        return layout;
+    }
+    let gutter = scanshelf_vision::find_gutter(image);
+    let at = gutter.center_x() / image.width() as f32;
+    if gutter.confidence >= AUTO_SPREAD_MIN_CONFIDENCE && (at - 0.5).abs() <= AUTO_SPREAD_MAX_OFF_CENTER {
+        PageLayout::Spread
+    } else {
+        layout
+    }
+}
+
 /// 원본 한 장을 출력 페이지 한 장, 두 장(펼친 책), 세 장(3단 접지)으로 만든다
 pub fn correct_page(input: CorrectInput<'_>) -> Result<Vec<(PagePart, RgbImage)>, String> {
     let models = input.models;
@@ -56,7 +75,8 @@ pub fn correct_page(input: CorrectInput<'_>) -> Result<Vec<(PagePart, RgbImage)>
     let flat = rotate_step(flat, input.layout, input.detect_rotation, input.extra_rotation);
     let flat = if input.options.remove_fingers { remove_fingers_step(flat, models)? } else { flat };
     let mut outputs = Vec::new();
-    for (part, image) in split_step(flat, input.layout) {
+    let layout = effective_layout(&flat, input.layout, input.auto_spread);
+    for (part, image) in split_step(flat, layout) {
         let image = dewarp_step(image, input.options.dewarp, models)?;
         let image = if input.options.remove_handwriting {
             remove_handwriting_step(image, models)?
@@ -182,6 +202,7 @@ mod tests {
             models: &Models::none(),
             detect_rotation: &|_| None,
             extra_rotation: 0,
+            auto_spread: false,
         })
         .unwrap()
         .into_iter()

@@ -2,7 +2,8 @@
 //!
 //! 보정(Enhanced)은 종이 배경을 추정해 나눈다. 배경은 블록마다 밝은 화소의 색이고, 블록이 사진이나
 //! 굵은 제목처럼 종이가 아닌 곳이면 주변 종이 블록에서 메워 넣는다. 채널마다 나누므로 그림자 제거와
-//! 흰색 맞춤이 한 번에 된다. 사진 영역도 주변 종이와 같은 비율로 밝아져 색이 날아가지 않는다.
+//! 흰색 맞춤이 한 번에 된다. 사진 영역은 종이처럼 흰색까지 끌어올리면 밝은 부분이 하얗게 날아가므로
+//! 배경의 일부만 보정하고 수준 맞춤도 하지 않는다(실제 팜플렛의 흰 로봇 사진에서 확인).
 //!
 //! 이진(BlackWhite)은 보정한 휘도에 Sauvola 적응 문턱을 쓴다. 지역 평균과 표준편차는 축소 영상에서
 //! 구해 늘린다(문턱은 천천히 변하는 값이라 차이가 거의 없고 4800만 화소에서도 빠르다).
@@ -21,6 +22,13 @@ const BACKGROUND_BLOCKS: u32 = 64;
 const BLACK_POINT: f32 = 22.0;
 const WHITE_POINT: f32 = 246.0;
 /// Sauvola 계수. 보정 뒤라 배경이 평평해 일반 문서보다 조금 낮게 둔다
+/// 사진 영역에 쓰는 밝기 보정 비율. 0이면 그대로, 1이면 종이와 같이 끌어올린다
+const PHOTO_GAIN: f32 = 0.35;
+/// 블록에서 이 비율 넘게 중간 톤이면 사진으로 본다
+const PHOTO_MIN_MIDTONES: f32 = 0.45;
+const PHOTO_CLOSE_BLOCKS: i64 = 2;
+/// 긴 변 64블록 기준 이보다 작으면 사진으로 보지 않는다(글자 덩어리)
+const PHOTO_MIN_BLOCKS: usize = 24;
 const SAUVOLA_K: f32 = 0.18;
 const SAUVOLA_R: f32 = 128.0;
 
@@ -40,6 +48,8 @@ pub struct Background {
     block: f32,
     /// 채널별 격자
     grid: [Plane; 3],
+    /// 사진 같은 영역(0~1). 종이로 인정되지 않은 블록을 넓혀 부드럽게 한 값
+    photo: Plane,
 }
 
 impl Background {
@@ -51,7 +61,7 @@ impl Background {
         let raw = img.as_raw();
 
         // 블록마다 (밝은 화소 평균색, 중앙값/상위값 비)
-        let stats: Vec<([f32; 3], f32, f32)> = (0..rows * cols)
+        let stats: Vec<([f32; 3], f32, f32, f32)> = (0..rows * cols)
             .into_par_iter()
             .map(|i| {
                 let (bx, by) = (i % cols, i / cols);
@@ -82,7 +92,10 @@ impl Background {
                 }
                 let c = cnt.max(1) as f64;
                 let color = [(acc[0] / c) as f32, (acc[1] / c) as f32, (acc[2] / c) as f32];
-                (color, p50 as f32, p92 as f32)
+                // 중간 톤 비율. 글자와 큰 제목은 종이와 잉크 두 덩어리라 낮고, 사진은 높다
+                let (low, high) = ((p92 as f32 * 0.3) as usize, (p92 as f32 * 0.88) as usize);
+                let mid: u32 = hist[low..=high.max(low)].iter().sum();
+                (color, p50 as f32, p92 as f32, mid as f32 / n.max(1) as f32)
             })
             .collect();
 
@@ -93,17 +106,18 @@ impl Background {
             l.select_nth_unstable_by(k, f32::total_cmp);
             l[k].max(1.0)
         };
-        let is_paper = |s: &([f32; 3], f32, f32), strict: bool| {
-            let (c, p50, p92) = *s;
+        let is_paper = |s: &([f32; 3], f32, f32, f32), strict: bool| {
+            let (c, p50, p92, mid) = *s;
             let chroma = c.iter().copied().fold(f32::MIN, f32::max) - c.iter().copied().fold(f32::MAX, f32::min);
             let uniform = p50 >= 0.72 * p92;
             let bright = p92 >= 0.25 * paper;
-            uniform && bright && (!strict || chroma <= 45.0)
+            uniform && bright && mid < PHOTO_MIN_MIDTONES && (!strict || chroma <= 45.0)
         };
-        let mut valid: Vec<bool> = stats.iter().map(|s| is_paper(s, true)).collect();
+        let mask = photo_mask(&stats.iter().map(|s| s.3 >= PHOTO_MIN_MIDTONES).collect::<Vec<_>>(), cols, rows);
+        let mut valid: Vec<bool> = stats.iter().zip(&mask.data).map(|(s, m)| *m < 0.5 && is_paper(s, true)).collect();
         // 색지 전체가 종이면 채도 조건으로는 하나도 안 남는다. 그때는 채도를 보지 않는다
         if valid.iter().filter(|v| **v).count() < valid.len() / 7 {
-            valid = stats.iter().map(|s| is_paper(s, false)).collect();
+            valid = stats.iter().zip(&mask.data).map(|(s, m)| *m < 0.5 && is_paper(s, false)).collect();
         }
         if valid.iter().filter(|v| **v).count() == 0 {
             valid.iter_mut().for_each(|v| *v = true);
@@ -117,7 +131,16 @@ impl Background {
             let filled = pull_push(&p, &valid);
             box_blur(&box_blur(&filled, 1), 1)
         });
-        Background { cols, rows, block, grid }
+        let photo = box_blur(&mask, 1);
+        Background { cols, rows, block, grid, photo }
+    }
+
+    /// 화소 (x, y)가 사진 영역인 정도(0~1)
+    #[inline]
+    pub fn photo_at(&self, x: f32, y: f32) -> f32 {
+        let gx = ((x + 0.5) / self.block - 0.5).clamp(0.0, (self.cols - 1) as f32);
+        let gy = ((y + 0.5) / self.block - 0.5).clamp(0.0, (self.rows - 1) as f32);
+        self.photo.sample(gx, gy)
     }
 
     /// 화소 (x, y)의 배경색
@@ -184,6 +207,85 @@ pub(crate) fn pull_push(p: &Plane, valid: &[bool]) -> Plane {
     out
 }
 
+/// 사진 영역. 중간 톤 블록은 사진의 가장자리와 질감에 몰리고 매끈한 안쪽(흰 물체의 몸체)은 빠진다.
+/// 안쪽을 종이로 보면 그 색을 흰색으로 끌어올려 사진이 날아가므로, 닫힘 연산으로 잇고 둘러싸인 곳을 채운다.
+/// 글자 몇 블록이 사진으로 잡히지 않도록 작은 덩어리는 버린다
+fn photo_mask(mid: &[bool], cols: usize, rows: usize) -> Plane {
+    let at = |m: &[bool], x: i64, y: i64| x >= 0 && y >= 0 && (x as usize) < cols && (y as usize) < rows && m[y as usize * cols + x as usize];
+    let morph = |m: &[bool], grow: bool| -> Vec<bool> {
+        let r = PHOTO_CLOSE_BLOCKS;
+        (0..rows as i64)
+            .flat_map(|y| (0..cols as i64).map(move |x| (x, y)))
+            .map(|(x, y)| {
+                let mut window = (-r..=r).flat_map(|dy| (-r..=r).map(move |dx| (dx, dy)));
+                if grow {
+                    window.any(|(dx, dy)| at(m, x + dx, y + dy))
+                } else {
+                    // 이미지 밖은 채운 것으로 쳐서 가장자리에 닿은 사진이 깎이지 않게 한다
+                    window.all(|(dx, dy)| {
+                        let (nx, ny) = (x + dx, y + dy);
+                        nx < 0 || ny < 0 || nx >= cols as i64 || ny >= rows as i64 || at(m, nx, ny)
+                    })
+                }
+            })
+            .collect()
+    };
+    let closed = morph(&morph(mid, true), false);
+    // 바깥에서 닿지 못하는 빈 곳은 둘러싸인 안쪽이다
+    let mut outside = vec![false; cols * rows];
+    let mut stack: Vec<usize> = (0..cols * rows)
+        .filter(|&i| (i % cols == 0 || i % cols == cols - 1 || i / cols == 0 || i / cols == rows - 1) && !closed[i])
+        .collect();
+    while let Some(i) = stack.pop() {
+        if outside[i] || closed[i] {
+            continue;
+        }
+        outside[i] = true;
+        let (x, y) = (i % cols, i / cols);
+        if x > 0 { stack.push(i - 1); }
+        if x + 1 < cols { stack.push(i + 1); }
+        if y > 0 { stack.push(i - cols); }
+        if y + 1 < rows { stack.push(i + cols); }
+    }
+    let filled: Vec<bool> = (0..cols * rows).map(|i| closed[i] || !outside[i]).collect();
+    // 작은 덩어리는 사진이 아니다
+    let mut seen = vec![false; cols * rows];
+    let mut plane = Plane::new(cols, rows, 0.0);
+    for start in 0..cols * rows {
+        if !filled[start] || seen[start] {
+            continue;
+        }
+        let mut blob = vec![start];
+        seen[start] = true;
+        let mut k = 0;
+        while k < blob.len() {
+            let i = blob[k];
+            k += 1;
+            let (x, y) = (i % cols, i / cols);
+            let mut visit = |n: usize| {
+                if filled[n] && !seen[n] {
+                    seen[n] = true;
+                    blob.push(n);
+                }
+            };
+            if x > 0 { visit(i - 1); }
+            if x + 1 < cols { visit(i + 1); }
+            if y > 0 { visit(i - cols); }
+            if y + 1 < rows { visit(i + cols); }
+        }
+        if blob.len() >= PHOTO_MIN_BLOCKS {
+            for i in blob {
+                plane.data[i] = 1.0;
+            }
+        }
+    }
+    plane
+}
+
+fn luma_of_f32(c: [f32; 3]) -> f32 {
+    (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]).max(8.0)
+}
+
 /// 배경으로 나누고 수준을 맞춘다
 pub fn enhance(img: &RgbImage) -> RgbImage {
     let bg = Background::estimate(img);
@@ -193,9 +295,16 @@ pub fn enhance(img: &RgbImage) -> RgbImage {
     out.par_chunks_mut(w * 3).enumerate().for_each(|(y, row)| {
         for (x, p) in row.as_chunks_mut::<3>().0.iter_mut().enumerate() {
             let b = bg.at(x as f32, y as f32);
+            let area = bg.photo_at(x as f32, y as f32);
+            // 사진 블록 안이어도 종이처럼 밝은 화소는 종이로 다룬다. 사진 가장자리에 회색 띠가 남지 않는다
+            let paperness = ((luma_of([p[0], p[1], p[2]]) / luma_of_f32(b) - 0.88) / 0.09).clamp(0.0, 1.0);
+            let photo = area * (1.0 - paperness);
             for c in 0..3 {
-                let flat = p[c] as f32 / b[c].max(8.0) * 255.0;
-                p[c] = ((flat - BLACK_POINT) * scale).clamp(0.0, 255.0) as u8;
+                let value = p[c] as f32;
+                let gain = 255.0 / b[c].max(8.0);
+                let paper = (value * gain - BLACK_POINT) * scale;
+                let picture = value * (1.0 + (gain - 1.0) * PHOTO_GAIN);
+                p[c] = (paper * (1.0 - photo) + picture * photo).clamp(0.0, 255.0) as u8;
             }
         }
     });
@@ -246,6 +355,36 @@ fn binarize(img: &RgbImage) -> RgbImage {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn 사진의_밝은_부분이_하얗게_날아가지_않는다() {
+        // 회색빛 종이 위 큰 사진
+        let img = RgbImage::from_fn(1200, 1600, |x, y| {
+            if (200..1000).contains(&x) && (300..1300).contains(&y) {
+                // 물체 안쪽은 매끈하고 종이보다 살짝 어둡다. 둘레는 질감이 있어 중간 톤이 많다
+                let inner = (400..800).contains(&x) && (500..1100).contains(&y);
+                let v = if inner { 168 } else { 70 + ((x * 37 + y * 53) % 90) as u8 };
+                Rgb([v, v, v])
+            } else {
+                Rgb([185, 185, 180])
+            }
+        });
+
+        let out = enhance(&img);
+
+        let (mut clipped, mut total) = (0, 0);
+        for y in 500..1100 {
+            for x in 400..800 {
+                total += 1;
+                if out.get_pixel(x, y).0[1] >= 225 {
+                    clipped += 1;
+                }
+            }
+        }
+        assert!(clipped * 100 / total < 5, "사진 안 날아간 화소 {clipped}/{total}");
+        // 종이는 여전히 희게 올라간다
+        assert!(out.get_pixel(50, 50).0[1] >= 240, "{:?}", out.get_pixel(50, 50));
+    }
+
     use super::*;
     use image::Rgb;
 

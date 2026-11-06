@@ -18,7 +18,7 @@ use std::path::{Path, PathBuf};
 use chrono::Utc;
 use image::RgbImage;
 use scanshelf_core::processing::{OutputPage, PIPELINE_VERSION, PagePart, ProcessOptions, Processing};
-use scanshelf_core::{Manifest, Page, Quad};
+use scanshelf_core::{Manifest, Page, PageLayout, Quad};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
@@ -32,6 +32,9 @@ use crate::library::{load_processing, read_json, write_json};
 /// 썸네일 너비. 보관함 표지와 문서 화면 페이지 목록이 같이 쓴다
 pub const THUMB_WIDTH: u32 = 360;
 const JPEG_QUALITY: u8 = 90;
+
+/// 문서 다수 방향을 믿는 데 필요한 최소 표 수
+const DOCUMENT_ROTATION_MIN_VOTES: usize = 2;
 
 pub fn thumb_path(cache: &Path, document_id: &str, output_id: &str) -> PathBuf {
     cache.join("thumbs").join(document_id).join(format!("{output_id}.jpg"))
@@ -59,6 +62,26 @@ struct PageState {
     fingerprint: String,
     #[serde(default)]
     detected_quad: Option<Quad>,
+    /// 글자로 확실히 판단한 회전. 글자가 적으면 없음
+    #[serde(default)]
+    rotation: Option<u16>,
+    /// 실제 쓴 자동 회전(문서 다수 방향을 따랐을 수 있다)
+    #[serde(default)]
+    applied_rotation: Option<u16>,
+}
+
+/// 문서의 다수 방향. 거치대에서 찍은 문서는 보통 한 방향이다. 글자가 적어 판단하지 못한 페이지가 따른다.
+/// 표가 적거나 방향이 갈리면 정하지 않는다
+fn document_rotation(votes: &[u16]) -> Option<u16> {
+    let best = [0u16, 90, 180, 270].into_iter().max_by_key(|d| votes.iter().filter(|v| *v == d).count())?;
+    let count = votes.iter().filter(|v| **v == best).count();
+    (count >= DOCUMENT_ROTATION_MIN_VOTES && count * 10 >= votes.len() * 6).then_some(best)
+}
+
+/// 문서의 펼침, 접지 사진 비율이 충분한지. 그때만 한 쪽으로 찍힌 장의 접은 자국을 살핀다
+fn mostly_spread(manifest: &Manifest) -> bool {
+    let wide = manifest.pages.iter().filter(|p| p.layout != PageLayout::Single).count();
+    wide * 3 >= manifest.pages.len() && wide > 0
 }
 
 fn load_state(cache: &Path, document_id: &str) -> PipelineState {
@@ -167,7 +190,7 @@ pub struct ProcessContext<'a> {
 /// 문서 하나를 처리한다. 바뀐 페이지만 다시 하고, 페이지마다 processing.json을 저장해 중간에 꺼져도 한 일은 남는다
 pub fn process_document(ctx: &ProcessContext<'_>) -> Result<Processing, String> {
     let dir = ctx.dir;
-    let (manifest, _) = crate::library::load_applied(dir)?;
+    let (manifest, edits) = crate::library::load_applied(dir)?;
     let document_id = manifest.id.to_string();
     let options = load_processing(dir).defaults;
     let mut state = load_state(ctx.cache, &document_id);
@@ -186,55 +209,87 @@ pub fn process_document(ctx: &ProcessContext<'_>) -> Result<Processing, String> 
         outputs_by_page.entry(output.source_page).or_default().push(output);
     }
 
-    for (index, page) in manifest.pages.iter().enumerate() {
-        let current = {
-            let processing = load_processing(dir);
-            page_is_current(dir, page, &options, &processing, &state)
-        };
-        if current && !ctx.force {
-            continue;
-        }
-        report(index, "decode");
-        let raw_path = dir.join(&page.raw);
-        let image = platform::decode_oriented(&raw_path, None).map_err(|e| e.to_string())?;
-        let mut detected_quad = None;
-        let quad = match page.quad {
-            Some(q) => Some(q),
-            None => {
-                detected_quad = platform::detect_document_quad(&image);
-                detected_quad
+    let spread_document = mostly_spread(&manifest);
+    let mut redo: Vec<Uuid> = Vec::new();
+    // 둘째 바퀴: 앞쪽에서 글자가 없어 방향을 못 정한 페이지를 문서 다수 방향으로 다시 처리한다
+    for pass in 0..2 {
+        for (index, page) in manifest.pages.iter().enumerate() {
+            let current = {
+                let processing = load_processing(dir);
+                page_is_current(dir, page, &options, &processing, &state)
+            };
+            let skip = if pass == 0 { current && !ctx.force } else { !redo.contains(&page.id) };
+            if skip {
+                continue;
             }
+            report(index, "decode");
+            let raw_path = dir.join(&page.raw);
+            let image = platform::decode_oriented(&raw_path, None).map_err(|e| e.to_string())?;
+            let mut detected_quad = None;
+            let quad = match page.quad {
+                Some(q) => Some(q),
+                None => {
+                    detected_quad = platform::detect_document_quad(&image);
+                    detected_quad
+                }
+            };
+            report(index, "correct");
+            let votes: Vec<u16> = manifest.pages.iter().filter_map(|p| state.pages.get(&p.id)?.rotation).collect();
+            let document_turn = document_rotation(&votes);
+            let decided = std::cell::Cell::new(None);
+            let detect = |image: &RgbImage| {
+                let found = crate::ocr::detect_rotation(image);
+                decided.set(found);
+                found.or(document_turn)
+            };
+            let parts = steps::correct_page(steps::CorrectInput {
+                image,
+                quad,
+                layout: page.layout,
+                options: &options,
+                models: ctx.models,
+                detect_rotation: &detect,
+                extra_rotation: page.extra_rotation,
+                // 사람이 배치를 고른 장은 그대로 둔다
+                auto_spread: spread_document && !edits.layouts.contains_key(&page.id),
+            })?;
+            let mut page_outputs = Vec::new();
+            for (part, image) in parts {
+                page_outputs.push(write_output(ctx, &document_id, page.id, part, &image, &options, || {
+                    report(index, "ocr")
+                })?);
+            }
+            let old = outputs_by_page.insert(page.id, page_outputs.clone()).unwrap_or_default();
+            // 펼침 ↔ 낱장을 바꾸면 출력 id가 달라진다. 남은 옛 파일을 지운다
+            for stale in old.iter().filter(|o| !page_outputs.iter().any(|n| n.id == o.id)) {
+                remove_output_files(dir, ctx.cache, &document_id, stale);
+            }
+            state.pages.insert(
+                page.id,
+                PageState {
+                    fingerprint: fingerprint(dir, page, &options),
+                    detected_quad,
+                    rotation: decided.get(),
+                    applied_rotation: decided.get().or(document_turn),
+                },
+            );
+            write_json(&state_path(ctx.cache, &document_id), &state)?;
+            save_outputs(ctx, &manifest, &outputs_by_page)?;
+        }
+
+        let votes: Vec<u16> = manifest.pages.iter().filter_map(|p| state.pages.get(&p.id)?.rotation).collect();
+        let Some(turn) = document_rotation(&votes) else {
+            break;
         };
-        report(index, "correct");
-        let parts = steps::correct_page(steps::CorrectInput {
-            image,
-            quad,
-            layout: page.layout,
-            options: &options,
-            models: ctx.models,
-            detect_rotation: &crate::ocr::detect_rotation,
-            extra_rotation: page.extra_rotation,
-        })?;
-        let mut page_outputs = Vec::new();
-        for (part, image) in parts {
-            page_outputs.push(write_output(ctx, &document_id, page.id, part, &image, &options, || {
-                report(index, "ocr")
-            })?);
+        redo = manifest
+            .pages
+            .iter()
+            .filter(|p| state.pages.get(&p.id).is_some_and(|s| s.rotation.is_none() && s.applied_rotation != Some(turn)))
+            .map(|p| p.id)
+            .collect();
+        if pass == 1 || redo.is_empty() {
+            break;
         }
-        let old = outputs_by_page.insert(page.id, page_outputs.clone()).unwrap_or_default();
-        // 펼침 ↔ 낱장을 바꾸면 출력 id가 달라진다. 남은 옛 파일을 지운다
-        for stale in old.iter().filter(|o| !page_outputs.iter().any(|n| n.id == o.id)) {
-            remove_output_files(dir, ctx.cache, &document_id, stale);
-        }
-        state.pages.insert(
-            page.id,
-            PageState {
-                fingerprint: fingerprint(dir, page, &options),
-                detected_quad,
-            },
-        );
-        write_json(&state_path(ctx.cache, &document_id), &state)?;
-        save_outputs(ctx, &manifest, &outputs_by_page)?;
     }
 
     // 지운 페이지의 출력도 정리한다(원본은 그대로 둔다)
@@ -315,4 +370,21 @@ fn save_outputs(
         .collect();
     processing.save(ctx.dir).map_err(|e| e.to_string())?;
     Ok(processing)
+}
+
+#[cfg(test)]
+mod rotation_tests {
+    use super::document_rotation;
+
+    #[test]
+    fn 문서_다수_방향을_고른다() {
+        assert_eq!(document_rotation(&[90, 90, 90, 0]), Some(90));
+    }
+
+    #[test]
+    fn 표가_적거나_갈리면_정하지_않는다() {
+        assert_eq!(document_rotation(&[90]), None);
+        assert_eq!(document_rotation(&[90, 90, 180, 180]), None);
+        assert_eq!(document_rotation(&[]), None);
+    }
 }
