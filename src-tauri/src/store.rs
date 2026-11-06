@@ -55,6 +55,8 @@ pub struct ImportOutcome {
     pub added_raw: Vec<String>,
     /// 보관함에 없던 새 문서였는지
     pub created: bool,
+    /// 보관함의 manifest가 더 새것이라 아무것도 바꾸지 않았다(`Store::is_stale`)
+    pub stale: bool,
 }
 
 pub struct Store {
@@ -131,6 +133,13 @@ impl Store {
         Ok(files)
     }
 
+    /// 보관함에 이 manifest보다 새 번호(`revision`)가 이미 있는지. Wi-Fi로 새것을 받은 뒤에 iCloud에서 옛것이 늦게 오면
+    /// 참이다. 옛것을 받아 주면 나중에 찍은 페이지가 목록에서 빠지고 iPhone에서 지운 페이지가 되살아난다
+    pub fn is_stale(&self, manifest: &Manifest) -> bool {
+        Manifest::load(&self.document_dir(manifest.id))
+            .is_ok_and(|library| library.revision.unwrap_or(0) > manifest.revision.unwrap_or(0))
+    }
+
     /// manifest의 원본이 모두 있으면 보관함으로 가져온다. 이미 있는 문서면 새 원본만 더하고 manifest를 바꾼다.
     /// edits.json, processing.json 같은 Mac 쪽 파일은 건드리지 않는다.
     ///
@@ -147,6 +156,16 @@ impl Store {
         let _guard = self.lock.lock().unwrap_or_else(|e| e.into_inner());
         let document = self.document_dir(manifest.id);
         let exists = document.join(MANIFEST_FILE).is_file();
+
+        if self.is_stale(manifest) {
+            clean_source(source, mode);
+            return Ok(ImportOutcome {
+                document_id: manifest.id,
+                added_raw: Vec::new(),
+                created: false,
+                stale: true,
+            });
+        }
 
         let mut to_add = Vec::new();
         let mut missing = Vec::new();
@@ -200,18 +219,23 @@ impl Store {
             }
         }
 
-        if mode == ImportMode::Move {
-            let _ = fs::remove_dir_all(source.join(RAW_DIR));
-            // 다른 업로드가 진행 중이면 .parts가 남아 있어 폴더는 지워지지 않는다. 그대로 둬도 된다
-            let _ = fs::remove_dir(source.join(PARTS_DIR));
-            let _ = fs::remove_dir(source);
-        }
+        clean_source(source, mode);
 
         Ok(ImportOutcome {
             document_id: manifest.id,
             added_raw: to_add,
             created: !exists,
+            stale: false,
         })
+    }
+}
+
+fn clean_source(source: &Path, mode: ImportMode) {
+    if mode == ImportMode::Move {
+        let _ = fs::remove_dir_all(source.join(RAW_DIR));
+        // 다른 업로드가 진행 중이면 .parts가 남아 있어 폴더는 지워지지 않는다. 그대로 둬도 된다
+        let _ = fs::remove_dir(source.join(PARTS_DIR));
+        let _ = fs::remove_dir(source);
     }
 }
 

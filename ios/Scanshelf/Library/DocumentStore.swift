@@ -91,15 +91,20 @@ struct DocumentStore: Sendable {
         return manifest
     }
 
-    /// 임시 파일에 쓴 뒤 rename(2)로 바꾼다. 전송이나 iCloud 복사 중에 반쯤 쓴 manifest를 읽지 않게 한다
-    func save(_ manifest: Manifest) throws {
+    /// 임시 파일에 쓴 뒤 rename(2)로 바꾼다. 전송이나 iCloud 복사 중에 반쯤 쓴 manifest를 읽지 않게 한다.
+    /// 번호(`revision`)를 올려 저장한 값을 돌려준다. 손에 든 값이 옛것이어도 디스크보다 커지게 디스크 값과 견준다
+    @discardableResult
+    func save(_ manifest: Manifest) throws -> Manifest {
         try manifest.validate()
+        var saved = manifest
+        saved.revision = max((try? load(manifest.id))?.revision ?? 0, manifest.revision ?? 0) + 1
         let directory = directory(of: manifest.id)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         try Self.writeAtomically(
-            try Manifest.encoder().encode(manifest),
+            try Manifest.encoder().encode(saved),
             to: directory.appending(path: ManifestSchema.fileName)
         )
+        return saved
     }
 
     func create(name: String, kind: DocumentKind, session: String?, now: Date = .now) throws -> Manifest {
@@ -116,8 +121,7 @@ struct DocumentStore: Sendable {
             at: directory(of: manifest.id).appending(path: Self.rawDirectory),
             withIntermediateDirectories: true
         )
-        try save(manifest)
-        return manifest
+        return try save(manifest)
     }
 
     /// 원본을 먼저 쓰고 manifest를 나중에 쓴다. 중간에 앱이 죽어도 manifest가 없는 사진을 가리키지 않는다.
@@ -141,11 +145,11 @@ struct DocumentStore: Sendable {
         if let oldPageID, let index = updated.pages.firstIndex(where: { $0.id == oldPageID }) {
             let old = updated.pages[index]
             updated.pages[index] = newPage
-            try save(updated)
+            updated = try save(updated)
             try? FileManager.default.removeItem(at: fileURL(of: manifest.id, relativePath: old.raw))
         } else {
             updated.pages.append(newPage)
-            try save(updated)
+            updated = try save(updated)
         }
         return updated
     }
@@ -156,7 +160,7 @@ struct DocumentStore: Sendable {
         }
         var updated = manifest
         let removed = updated.pages.remove(at: index)
-        try save(updated)
+        updated = try save(updated)
         try? FileManager.default.removeItem(at: fileURL(of: manifest.id, relativePath: removed.raw))
         return updated
     }
@@ -166,8 +170,7 @@ struct DocumentStore: Sendable {
         updated.name = name
         updated.kind = kind
         updated.session = session
-        try save(updated)
-        return updated
+        return try save(updated)
     }
 
     func deleteDocument(_ documentID: UUID) throws {

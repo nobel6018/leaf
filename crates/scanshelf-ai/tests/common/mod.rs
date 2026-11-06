@@ -137,6 +137,7 @@ pub fn make_document(
         session: session.map(str::to_string),
         created_at,
         pages: manifest_pages,
+        revision: None,
     };
     manifest.save(&dir).unwrap();
     let processing = Processing {

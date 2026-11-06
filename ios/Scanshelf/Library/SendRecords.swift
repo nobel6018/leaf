@@ -14,14 +14,16 @@ struct SendRecord: Codable, Equatable, Sendable {
     var sentAt: Date
     /// 보낼 때의 manifest 지문. 지금 지문과 다르면 그 뒤에 페이지를 더 찍은 것이다
     var manifestFingerprint: String
-    /// Mac이 받았다고 확인됐는가. Wi-Fi는 manifest PUT 200, iCloud는 Mac이 inbox에서 가져가 폴더가 사라졌을 때
+    /// Mac이 받았다고 확인됐는가. Wi-Fi는 manifest PUT 200, iCloud는 Mac의 확인 파일에 이 지문이 적혀 있을 때
     var confirmed: Bool
 }
 
 enum SendStatus: Equatable, Sendable {
     case notSent
     case sending(progress: Double)
-    /// iCloud에 복사했고 Mac이 가져가기를 기다린다
+    /// 찍은 것이 아직 iCloud에 다 올라가지 않았다
+    case backupPending
+    /// iCloud에 있고 Mac이 가져가기를 기다린다
     case awaitingMac(SendMethod)
     case sent(SendMethod, Date)
     /// 보낸 뒤 페이지가 바뀌었다
@@ -32,6 +34,25 @@ enum SendStatus: Equatable, Sendable {
         guard let record else { return .notSent }
         guard record.manifestFingerprint == currentFingerprint else { return .changedSinceSent }
         return record.confirmed ? .sent(record.method, record.sentAt) : .awaitingMac(record.method)
+    }
+
+    /// 목록과 문서 화면에 보일 상태. 앱을 지워도 남는지를 먼저 보여 준다.
+    /// Wi-Fi 실패는 iCloud 백업이 받쳐 주면 드러내지 않는다
+    static func resolve(
+        record: SendRecord?,
+        fingerprint: String?,
+        hasPages: Bool,
+        folderChosen: Bool,
+        backup: BackupEntry?,
+        transferFailure: String?
+    ) -> SendStatus {
+        let base = of(record: record, currentFingerprint: fingerprint)
+        if case .sent = base { return base }
+        if folderChosen, hasPages {
+            return backup?.uploadedFingerprint == fingerprint && fingerprint != nil ? .awaitingMac(.icloud) : .backupPending
+        }
+        if let transferFailure { return .failed(transferFailure) }
+        return base
     }
 }
 

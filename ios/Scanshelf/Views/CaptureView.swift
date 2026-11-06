@@ -9,14 +9,19 @@ struct CaptureView: View {
     @State private var flashOpacity = 0.0
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
+    private let app: AppModel
 
     init(document: Manifest, layout: PageLayout?, app: AppModel) {
+        self.app = app
         _model = State(initialValue: CaptureModel(document: document, layout: layout, app: app))
     }
 
     var body: some View {
         VStack(spacing: 0) {
             topBar
+            if let notice = app.backupNotice {
+                BackupNoticeView(notice: notice, compact: true)
+            }
             preview
                 .padding(.top, 8)
             Spacer(minLength: 8)

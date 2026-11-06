@@ -171,6 +171,7 @@ fn build_document(store: &Store, plan: &Plan, render_pdf: PdfRenderer) -> Result
             session: None,
             created_at: now,
             pages,
+            revision: None,
         };
         let count = manifest.pages.len();
         store.import(&manifest, &staging, ImportMode::Move).map_err(|e| e.to_string())?;
@@ -389,6 +390,7 @@ pub(crate) mod tests {
             session: None,
             created_at: milliseconds(Utc::now()),
             pages,
+            revision: None,
         }
         .save(&dir)
         .unwrap();

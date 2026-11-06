@@ -1,8 +1,8 @@
 import Foundation
 
-// Mac이 같은 Wi-Fi에 없을 때 쓰는 보조 경로. 무료 Apple ID 서명이라 CloudKit과 앱 전용 iCloud 폴더를 못 쓴다.
+// 앱을 지워도 스캔이 남도록 찍을 때마다 복사하는 곳. 무료 Apple ID 서명이라 CloudKit과 앱 전용 iCloud 폴더를 못 쓴다.
 // 파일 앱 폴더 선택기로 iCloud Drive/scanshelf를 한 번 고르고 보안 범위 북마크로 기억한다.
-// scanshelf/inbox/<문서 id>/에 원본을 먼저, manifest를 마지막에 복사한다. Mac은 가져간 뒤 그 폴더를 지운다.
+// 복사는 Transfer/ICloudBackup.swift가 한다.
 // @see docs/transfer.md
 
 enum ICloudFolderError: Error, LocalizedError {
@@ -22,6 +22,7 @@ enum ICloudFolderError: Error, LocalizedError {
 enum ICloudFolderLayout {
     static let rootName = "scanshelf"
     static let inboxName = "inbox"
+    static let receivedName = "received"
     private static let iCloudDriveName = "com~apple~CloudDocs"
 
     /// 고른 폴더에서 scanshelf 루트를 찾는다. scanshelf 안의 inbox나 문서 폴더를 고르는 실수를 받아 주려고 위로 올라가며 찾는다.
@@ -45,6 +46,12 @@ enum ICloudFolderLayout {
             .appending(path: documentID.uuidString.lowercased(), directoryHint: .isDirectory)
     }
 
+    /// Mac이 받은 것을 적어 두는 파일
+    static func receipt(in root: URL, documentID: UUID) -> URL {
+        root.appending(path: receivedName, directoryHint: .isDirectory)
+            .appending(path: "\(documentID.uuidString.lowercased()).json")
+    }
+
     private static func isInsideICloudDrive(_ url: URL) -> Bool {
         url.pathComponents.contains(iCloudDriveName)
     }
@@ -64,7 +71,9 @@ final class ICloudFolder {
     }
 
     var isChosen: Bool {
-        UserDefaults.standard.data(forKey: Self.bookmarkKey) != nil
+        // UserDefaults는 관찰되지 않는다. pickedFolder를 읽어 두어 고르거나 잊을 때 화면이 다시 그려지게 한다
+        _ = pickedFolder
+        return UserDefaults.standard.data(forKey: Self.bookmarkKey) != nil
     }
 
     init() {
@@ -110,57 +119,5 @@ final class ICloudFolder {
         pickedFolder = url
         guard let root = ICloudFolderLayout.scanshelfRoot(forPicked: url) else { throw ICloudFolderError.notICloudFolder }
         return root
-    }
-}
-
-/// 파일 복사는 무거우니 메인 스레드 밖에서 부른다
-enum ICloudExporter {
-    /// 원본을 먼저, manifest를 마지막에 복사한다. 이미 같은 크기로 있는 원본은 건너뛰어 이어 복사가 된다
-    static func export(documentID: UUID, store: DocumentStore, scanshelfRoot: URL) throws -> Manifest {
-        let manifestData = try Data(contentsOf: store.manifestURL(of: documentID))
-        let manifest = try Manifest.decoder().decode(Manifest.self, from: manifestData)
-        try manifest.validate()
-
-        let target = ICloudFolderLayout.inbox(in: scanshelfRoot, documentID: documentID)
-        try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
-
-        for page in manifest.pages {
-            let source = store.fileURL(of: documentID, relativePath: page.raw)
-            let destination = target.appending(path: page.raw)
-            if sameSize(source, destination) { continue }
-            try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try coordinatedWrite(to: destination) { url in
-                try DocumentStore.writeAtomically(try Data(contentsOf: source), to: url)
-            }
-        }
-        try coordinatedWrite(to: target.appending(path: ManifestSchema.fileName)) { url in
-            try DocumentStore.writeAtomically(manifestData, to: url)
-        }
-        return manifest
-    }
-
-    /// Mac이 가져가면 inbox/<문서 id>를 지운다. 그 삭제가 이 iPhone에 내려오면 받은 것으로 확인한다
-    /// inbox 자체가 안 보이면 폴더 접근이 끊긴 것이라 확인하지 않는다(지운 것으로 오해해 원본을 지우면 안 된다)
-    static func isImportedByMac(documentID: UUID, scanshelfRoot: URL) -> Bool {
-        let inbox = scanshelfRoot.appending(path: ICloudFolderLayout.inboxName, directoryHint: .isDirectory)
-        guard FileManager.default.fileExists(atPath: inbox.path) else { return false }
-        return !FileManager.default.fileExists(atPath: ICloudFolderLayout.inbox(in: scanshelfRoot, documentID: documentID).path)
-    }
-
-    private static func sameSize(_ a: URL, _ b: URL) -> Bool {
-        guard let sizeA = try? a.resourceValues(forKeys: [.fileSizeKey]).fileSize,
-              let sizeB = try? b.resourceValues(forKeys: [.fileSizeKey]).fileSize
-        else { return false }
-        return sizeA == sizeB
-    }
-
-    private static func coordinatedWrite(to url: URL, _ write: (URL) throws -> Void) throws {
-        var coordinationError: NSError?
-        var writeError: Error?
-        NSFileCoordinator(filePresenter: nil).coordinate(writingItemAt: url, options: .forReplacing, error: &coordinationError) { target in
-            do { try write(target) } catch { writeError = error }
-        }
-        if let coordinationError { throw coordinationError }
-        if let writeError { throw writeError }
     }
 }

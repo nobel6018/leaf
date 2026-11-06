@@ -72,12 +72,15 @@ struct Manifest: Codable, Equatable, Sendable, Identifiable {
     var session: String?
     var createdAt: Date
     var pages: [Page]
+    /// 저장할 때마다 1씩 오르는 번호(`DocumentStore.save`). Wi-Fi와 iCloud로 순서가 뒤바뀌어 도착해도 Mac이 옛 판으로 되돌아가지 않게 한다.
+    /// 옛 앱이 만든 문서에는 없다
+    var revision: Int?
 
     private enum CodingKeys: String, CodingKey {
-        case schemaVersion, id, name, kind, session, createdAt, pages
+        case schemaVersion, id, name, kind, session, createdAt, pages, revision
     }
 
-    init(schemaVersion: Int, id: UUID, name: String, kind: DocumentKind, session: String?, createdAt: Date, pages: [Page]) {
+    init(schemaVersion: Int, id: UUID, name: String, kind: DocumentKind, session: String?, createdAt: Date, pages: [Page], revision: Int? = nil) {
         self.schemaVersion = schemaVersion
         self.id = id
         self.name = name
@@ -85,6 +88,7 @@ struct Manifest: Codable, Equatable, Sendable, Identifiable {
         self.session = session
         self.createdAt = createdAt
         self.pages = pages
+        self.revision = revision
     }
 
     func encode(to encoder: Encoder) throws {
@@ -96,6 +100,7 @@ struct Manifest: Codable, Equatable, Sendable, Identifiable {
         try container.encodeIfPresent(session, forKey: .session)
         try container.encode(createdAt, forKey: .createdAt)
         try container.encode(pages, forKey: .pages)
+        try container.encodeIfPresent(revision, forKey: .revision)
     }
 
     static func decoder() -> JSONDecoder {

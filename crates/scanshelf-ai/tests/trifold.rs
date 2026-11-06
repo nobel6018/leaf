@@ -26,6 +26,7 @@ fn 세_면_출력은_원본_순서와_면_순서를_따른다() {
         session: None,
         created_at,
         pages: vec![page(fold, PageLayout::Trifold), page(cover, PageLayout::Single)],
+        revision: None,
     }
     .save(&dir)
     .unwrap();

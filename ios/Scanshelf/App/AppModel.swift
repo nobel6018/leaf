@@ -1,19 +1,21 @@
 import Foundation
 import UIKit
 
-// 앱 전체 상태: 문서 목록, 보낸 기록, 보내기(Wi-Fi 먼저, 안 되면 iCloud 폴더), 원본 자동 삭제.
+// 앱 전체 상태: 문서 목록, 보낸 기록, Wi-Fi 보내기, iCloud 백업 연결, 원본 자동 삭제.
 // @see docs/ios.md, docs/transfer.md
 
 @MainActor
 @Observable
-final class AppModel {
+final class AppModel: BackupHost {
     /// Bonjour로 페어링한 Mac을 기다리는 시간. 넘으면 마지막 주소로 시도한다
     static let discoveryTimeout: TimeInterval = 4
 
     let store: DocumentStore
     let settings: AppSettings
     let browser = MacBrowser()
-    let iCloud = ICloudFolder()
+    let iCloud: ICloudFolder
+    /// 찍을 때마다 iCloud 폴더로 복사한다. 촬영은 이 일을 기다리지 않는다
+    let backup: ICloudBackup
 
     private(set) var documents: [Manifest] = []
     private(set) var records: [UUID: SendRecord] = [:]
@@ -28,6 +30,7 @@ final class AppModel {
     init(
         store: DocumentStore = .appDefault(),
         recordStore: SendRecordStore = .appDefault(),
+        backupStateStore: BackupStateStore = .appDefault(),
         settings: AppSettings = AppSettings()
     ) {
         self.store = store
@@ -38,8 +41,16 @@ final class AppModel {
         configuration.timeoutIntervalForResource = 600
         configuration.waitsForConnectivity = false
         urlSession = URLSession(configuration: configuration)
+        let folder = ICloudFolder()
+        iCloud = folder
+        backup = ICloudBackup(store: store, stateStore: backupStateStore) {
+            folder.isChosen ? try folder.resolve() : nil
+        }
         try? FileManager.default.createDirectory(at: store.root, withIntermediateDirectories: true)
         reload()
+        backup.host = self
+        // 지난 실행에서 못 올린 것을 이어 올린다
+        backup.kick()
     }
 
     func reload() {
@@ -53,8 +64,37 @@ final class AppModel {
 
     func status(of manifest: Manifest) -> SendStatus {
         if let value = progress[manifest.id] { return .sending(progress: value) }
-        if let failure = failures[manifest.id] { return .failed(failure) }
-        return SendStatus.of(record: records[manifest.id], currentFingerprint: try? manifest.fingerprint())
+        return SendStatus.resolve(
+            record: records[manifest.id],
+            fingerprint: try? manifest.fingerprint(),
+            hasPages: !manifest.pages.isEmpty,
+            folderChosen: iCloud.isChosen,
+            backup: backup.state.entries[manifest.id],
+            transferFailure: failures[manifest.id]
+        )
+    }
+
+    /// iCloud 폴더가 없거나 닿지 않으면 스캔은 이 iPhone에만 있다. 문서 목록과 촬영 화면에 계속 띄운다
+    var backupNotice: BackupNotice? {
+        BackupNotice.of(folderChosen: iCloud.isChosen, folderFailure: backup.folderFailure)
+    }
+
+    func chooseICloudFolder(_ url: URL) throws {
+        try iCloud.choose(url)
+        backup.folderChanged()
+    }
+
+    func forgetICloudFolder() {
+        iCloud.forget()
+        backup.folderChanged()
+    }
+
+    func retryBackup(_ documentID: UUID) {
+        backup.kick(documentID)
+    }
+
+    func backupConfirmed(_ documentID: UUID, fingerprint: String) {
+        try? record(SendRecord(method: .icloud, sentAt: .now, manifestFingerprint: fingerprint, confirmed: true), for: documentID)
     }
 
     // MARK: 문서
@@ -83,6 +123,7 @@ final class AppModel {
             documents.insert(manifest, at: 0)
         }
         failures[manifest.id] = nil
+        backup.kick(manifest.id)
     }
 
     func updateMetadata(_ manifest: Manifest, name: String, kind: DocumentKind, session: String) throws {
@@ -101,36 +142,34 @@ final class AppModel {
         documents.removeAll { $0.id == id }
         records[id] = nil
         try? recordStore.save(records)
+        backup.documentDeleted(id)
     }
 
     // MARK: 보내기
 
-    enum Route {
-        case wifi
-        case icloud
-        /// Wi-Fi로 Mac을 찾고, 못 찾으면 iCloud 폴더
-        case automatic
-    }
-
-    /// 아직 안 보냈거나 보낸 뒤 바뀐 문서를 보낸다. 앱이 앞으로 올 때와 촬영을 마칠 때 부른다
+    /// 밀린 iCloud 백업을 깨우고, 페어링한 Mac이 있으면 아직 Mac에 없는 문서를 Wi-Fi로 보낸다.
+    /// iCloud에 올라간 문서도 보낸다. Mac이 같은 Wi-Fi에 있으면 그쪽이 훨씬 빨리 확인된다.
+    /// 앱이 앞으로 올 때와 촬영을 마칠 때 부른다
     func sendPending() async {
-        await confirmICloudImports()
-        let pending = documents.filter { manifest in
-            guard !manifest.pages.isEmpty, progress[manifest.id] == nil else { return false }
-            switch status(of: manifest) {
-            case .notSent, .changedSinceSent, .failed: return true
-            default: return false
+        backup.kick()
+        if settings.pairedMac != nil {
+            let pending = documents.filter { manifest in
+                guard !manifest.pages.isEmpty, progress[manifest.id] == nil else { return false }
+                if case .sent = status(of: manifest) { return false }
+                return true
             }
-        }
-        guard !pending.isEmpty, settings.pairedMac != nil || iCloud.isChosen else { return }
-        for manifest in pending {
-            await send(manifest.id, route: .automatic)
+            for manifest in pending {
+                // Mac에 닿지 않으면 문서마다 시간 제한을 기다리지 않는다
+                guard await send(manifest.id) else { break }
+            }
         }
         applyRetention()
     }
 
-    func send(_ documentID: UUID, route: Route) async {
-        guard progress[documentID] == nil else { return }
+    /// Wi-Fi로 보낸다. Mac에 닿지 않았으면 false
+    @discardableResult
+    func send(_ documentID: UUID) async -> Bool {
+        guard progress[documentID] == nil else { return true }
         progress[documentID] = 0
         failures[documentID] = nil
         // 화면을 끄거나 앱을 내려도 보내던 파일 하나는 마칠 수 있게 시간을 얻는다(약 30초). 그 뒤는 앞으로 오면 이어 보낸다
@@ -140,23 +179,11 @@ final class AppModel {
             progress[documentID] = nil
         }
         do {
-            switch route {
-            case .wifi:
-                try await sendOverWiFi(documentID)
-            case .icloud:
-                try await sendToICloud(documentID)
-            case .automatic:
-                do {
-                    try await sendOverWiFi(documentID)
-                } catch let error as TransferError where error == .unauthorized {
-                    throw error
-                } catch {
-                    guard iCloud.isChosen else { throw error }
-                    try await sendToICloud(documentID)
-                }
-            }
+            try await sendOverWiFi(documentID)
+            return true
         } catch {
             failures[documentID] = error.localizedDescription
+            return !(error is URLError)
         }
     }
 
@@ -176,15 +203,8 @@ final class AppModel {
             await MainActor.run { [weak self] in self?.progress[documentID] = value }
         }
         try record(SendRecord(method: .wifi, sentAt: .now, manifestFingerprint: sent.fingerprint(), confirmed: true), for: documentID)
-    }
-
-    private func sendToICloud(_ documentID: UUID) async throws {
-        let root = try iCloud.resolve()
-        let store = store
-        let sent = try await Task.detached(priority: .userInitiated) {
-            try ICloudExporter.export(documentID: documentID, store: store, scanshelfRoot: root)
-        }.value
-        try record(SendRecord(method: .icloud, sentAt: .now, manifestFingerprint: sent.fingerprint(), confirmed: false), for: documentID)
+        // Mac이 받았으니 iCloud 사본은 치우고, 이 원본들은 다시 올리지 않는다
+        backup.noteDelivered(documentID, manifest: sent)
     }
 
     private func locate(_ paired: PairedMac) async throws -> MacAddress {
@@ -202,19 +222,6 @@ final class AppModel {
     private func record(_ record: SendRecord, for documentID: UUID) throws {
         records[documentID] = record
         try recordStore.save(records)
-    }
-
-    /// iCloud로 보낸 문서 중 Mac이 inbox에서 가져간 것을 확인됨으로 바꾼다
-    func confirmICloudImports() async {
-        guard let root = try? iCloud.resolve() else { return }
-        var changed = false
-        for (id, record) in records where record.method == .icloud && !record.confirmed {
-            if ICloudExporter.isImportedByMac(documentID: id, scanshelfRoot: root) {
-                records[id]?.confirmed = true
-                changed = true
-            }
-        }
-        if changed { try? recordStore.save(records) }
     }
 
     /// Mac이 받은 것이 확인되고 그 뒤 바뀌지 않은 문서를 기간이 지나면 지운다. Mac은 원본을 지우지 않는다

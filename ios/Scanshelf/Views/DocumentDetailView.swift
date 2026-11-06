@@ -45,15 +45,18 @@ struct DocumentDetailView: View {
                     Spacer()
                     SendStatusBadge(status: app.status(of: manifest))
                 }
-                if case let .failed(reason) = app.status(of: manifest) {
-                    Text(reason).font(.footnote).foregroundStyle(.red)
+                if let reason = app.failures[manifest.id] {
+                    Text("Wi-Fi로 보내지 못했습니다: \(reason)").font(.footnote).foregroundStyle(.red)
+                }
+                if let reason = app.backup.state.entries[manifest.id]?.lastError {
+                    Text("iCloud 백업을 다시 시도합니다: \(reason)").font(.footnote).foregroundStyle(.secondary)
                 }
                 Button("Mac으로 보내기 (Wi-Fi)", systemImage: "wifi") {
-                    Task { await app.send(manifest.id, route: .wifi) }
+                    Task { await app.send(manifest.id) }
                 }
                 .disabled(app.settings.pairedMac == nil || manifest.pages.isEmpty)
-                Button("iCloud 폴더로 보내기", systemImage: "icloud") {
-                    Task { await app.send(manifest.id, route: .icloud) }
+                Button("iCloud 백업 지금 다시 시도", systemImage: "icloud") {
+                    app.retryBackup(manifest.id)
                 }
                 .disabled(!app.iCloud.isChosen || manifest.pages.isEmpty)
             }

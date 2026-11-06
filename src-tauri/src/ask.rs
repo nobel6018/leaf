@@ -499,6 +499,7 @@ pub(crate) mod testkit {
             session: session.map(str::to_string),
             created_at,
             pages: manifest_pages,
+            revision: None,
         }
         .save(&dir)
         .unwrap();
