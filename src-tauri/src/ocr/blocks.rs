@@ -134,6 +134,29 @@ fn median(mut values: Vec<f64>) -> f64 {
     values[values.len() / 2]
 }
 
+/// 위에서 아래로, 같은 줄이면 왼쪽부터.
+/// "겹치면 x, 아니면 y"를 비교 함수 하나로 쓰면 안 된다. 기울어진 글줄에서 A와 B, B와 C는 겹치고 A와 C는 안 겹칠 수 있어
+/// 순서가 돌고 돌아(A<B<C<A) 정렬이 panic한다. 그래서 y로 정렬한 뒤 줄로 묶고, 줄 안에서만 x로 정렬한다
+fn sort_lines_for_reading(mut lines: Vec<OcrLine>) -> Vec<OcrLine> {
+    lines.sort_by(|a, b| a.bbox.y.total_cmp(&b.bbox.y));
+    let mut rows: Vec<Vec<OcrLine>> = Vec::new();
+    for line in lines {
+        let same_row = rows.last().and_then(|row| row.last()).is_some_and(|last| {
+            overlap(last.bbox.y, bottom(&last.bbox), line.bbox.y, bottom(&line.bbox))
+                > 0.5 * last.bbox.height.min(line.bbox.height)
+        });
+        if same_row {
+            rows.last_mut().expect("같은 줄이면 줄이 있다").push(line);
+        } else {
+            rows.push(vec![line]);
+        }
+    }
+    for row in &mut rows {
+        row.sort_by(|a, b| a.bbox.x.total_cmp(&b.bbox.x));
+    }
+    rows.into_iter().flatten().collect()
+}
+
 /// 영어 줄 끝 하이픈은 떼고 잇는다. 한글과 그 밖의 줄은 공백으로 잇는다
 fn join_lines(lines: &[OcrLine], kind: BlockKind) -> String {
     if kind == BlockKind::List {
@@ -186,17 +209,8 @@ pub fn build_page(engine: &str, image_width: u32, image_height: u32, lines: Vec<
     let mut blocks: Vec<OcrBlock> = groups
         .into_iter()
         .map(|members| {
-            let mut block_lines: Vec<OcrLine> = members.iter().map(|&i| lines[i].clone()).collect();
-            // 위에서 아래로, 같은 줄이면 왼쪽부터
-            block_lines.sort_by(|a, b| {
-                let same_row = overlap(a.bbox.y, bottom(&a.bbox), b.bbox.y, bottom(&b.bbox))
-                    > 0.5 * a.bbox.height.min(b.bbox.height);
-                if same_row {
-                    a.bbox.x.total_cmp(&b.bbox.x)
-                } else {
-                    a.bbox.y.total_cmp(&b.bbox.y)
-                }
-            });
+            let block_lines: Vec<OcrLine> = members.iter().map(|&i| lines[i].clone()).collect();
+            let block_lines = sort_lines_for_reading(block_lines);
             let bbox = block_lines
                 .iter()
                 .skip(1)
@@ -236,6 +250,37 @@ pub fn build_page(engine: &str, image_width: u32, image_height: u32, lines: Vec<
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn 기울어진_글줄이_많아도_정렬이_panic하지_않고_위에서_아래로_읽는다() {
+        // 비교가 돌고 도는 배치: 이웃끼리만 겹치고 x는 아래로 갈수록 왼쪽으로 간다
+        let lines: Vec<OcrLine> = (0..200)
+            .map(|i| OcrLine {
+                text: format!("줄{i}"),
+                bbox: Rect { x: 0.9 - i as f64 * 0.004, y: i as f64 * 0.004, width: 0.05, height: 0.007 },
+                confidence: 1.0,
+            })
+            .collect();
+
+        let ordered = super::sort_lines_for_reading(lines.iter().rev().cloned().collect());
+
+        assert_eq!(ordered.len(), 200);
+        assert_eq!(ordered[0].text, "줄0");
+    }
+
+    #[test]
+    fn 같은_줄은_왼쪽부터_다음_줄은_그_아래() {
+        let line = |text: &str, x: f64, y: f64| OcrLine {
+            text: text.into(),
+            bbox: Rect { x, y, width: 0.1, height: 0.02 },
+            confidence: 1.0,
+        };
+
+        let ordered = super::sort_lines_for_reading(vec![line("다", 0.1, 0.1), line("나", 0.5, 0.05), line("가", 0.1, 0.051)]);
+
+        let texts: Vec<&str> = ordered.iter().map(|l| l.text.as_str()).collect();
+        assert_eq!(texts, vec!["가", "나", "다"]);
+    }
+
     use super::*;
 
     fn line(text: &str, x: f64, y: f64, w: f64, h: f64) -> OcrLine {

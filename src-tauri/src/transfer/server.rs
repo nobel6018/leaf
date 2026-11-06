@@ -167,7 +167,7 @@ struct PairRequest {
 
 async fn pair(State(service): Shared, body: Bytes) -> Result<Json<Value>, ApiError> {
     let request: PairRequest =
-        serde_json::from_slice(&body).map_err(|e| ApiError::bad_request(format!("짝짓기 요청 형식 오류: {e}")))?;
+        serde_json::from_slice(&body).map_err(|e| ApiError::bad_request(format!("페어링 요청 형식 오류: {e}")))?;
     let device_id = Uuid::parse_str(&request.device_id)
         .map_err(|_| ApiError::bad_request("deviceId는 UUID여야 한다"))?
         .to_string();
@@ -176,7 +176,7 @@ async fn pair(State(service): Shared, body: Bytes) -> Result<Json<Value>, ApiErr
     match service.pairing.attempt(request.code.trim(), Utc::now()) {
         Ok(()) => {}
         Err(PairError::Closed) => {
-            return Err(ApiError::new(StatusCode::FORBIDDEN, "pairing_closed", "짝짓기 창이 열려 있지 않다"));
+            return Err(ApiError::new(StatusCode::FORBIDDEN, "pairing_closed", "페어링 창이 열려 있지 않다"));
         }
         Err(PairError::WrongCode) => {
             return Err(ApiError::new(StatusCode::UNAUTHORIZED, "wrong_code", "코드가 맞지 않는다"));
@@ -189,7 +189,7 @@ async fn pair(State(service): Shared, body: Bytes) -> Result<Json<Value>, ApiErr
     let device = blocking(move || devices.add(&device_id, &name, &token))
         .await?
         .map_err(ApiError::internal)?;
-    eprintln!("iPhone 짝지음: {} ({})", device.device_name, device.device_id);
+    eprintln!("iPhone 페어링하음: {} ({})", device.device_name, device.device_id);
     service.events.pairing_completed(&device);
     Ok(Json(json!({ "token": hex::encode(token), "macName": service.mac_name })))
 }
@@ -225,7 +225,7 @@ async fn authenticate(service: &Arc<TransferService>, method: &Method, path: &st
     let token = blocking(move || devices.token(&lookup_id))
         .await?
         .map_err(ApiError::internal)?
-        .ok_or_else(|| ApiError::unauthorized("짝지은 기기가 아니다"))?;
+        .ok_or_else(|| ApiError::unauthorized("페어링한 기기가 아니다"))?;
 
     if !verify(&token, method.as_str(), path, timestamp, &body_sha256, &signature) {
         return Err(ApiError::unauthorized("서명이 맞지 않는다"));

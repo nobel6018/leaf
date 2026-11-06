@@ -7,7 +7,7 @@ import UIKit
 @MainActor
 @Observable
 final class AppModel {
-    /// Bonjour로 짝지은 Mac을 기다리는 시간. 넘으면 마지막 주소로 시도한다
+    /// Bonjour로 페어링한 Mac을 기다리는 시간. 넘으면 마지막 주소로 시도한다
     static let discoveryTimeout: TimeInterval = 4
 
     let store: DocumentStore
@@ -258,7 +258,7 @@ final class AppModel {
         settings.dismissedUpdateVersion = settings.availableUpdate?.version
     }
 
-    // MARK: 짝짓기
+    // MARK: 페어링
 
     static let tokenAccount = "paired-mac"
 

@@ -13,18 +13,18 @@ macOS에서는 시스템 mDNSResponder에 등록합니다(`DNSServiceRegister`).
 - 서버는 앱을 켤 때 `0.0.0.0`의 OS가 고른 포트에 엽니다(`transfer::setup`). 포트는 실행마다 바뀌고 iPhone은 Bonjour로 알아냅니다
 - Bonjour는 순수 Rust `mdns-sd`로 알립니다(Windows에도 그대로 쓰려고). 인스턴스 이름은 Mac의 컴퓨터 이름, TXT는 `api=1`, `version=<앱 버전>`입니다. 서버가 IPv4에만 열려 있어 IPv4 주소만 알립니다(`transfer/bonjour.rs`)
 
-### 짝짓기
+### 페어링
 
 1. Mac 설정에서 "iPhone 연결"을 누르면 6자리 코드가 2분 동안 표시됩니다
 2. iPhone에 코드를 넣으면 `POST /v1/pair`로 보냅니다
-3. Mac은 32바이트 무작위 토큰을 만들어 돌려주고 키체인에 기기 id와 같이 둡니다(서비스 `com.nobel6018.scanshelf.transfer`, 계정은 기기 id). iPhone도 키체인에 둡니다. 기기 목록(id, 이름, 짝지은 시각)은 토큰 없이 앱 데이터 `devices.json`에 둡니다(`transfer/devices.rs`)
+3. Mac은 32바이트 무작위 토큰을 만들어 돌려주고 키체인에 기기 id와 같이 둡니다(서비스 `com.nobel6018.scanshelf.transfer`, 계정은 기기 id). iPhone도 키체인에 둡니다. 기기 목록(id, 이름, 페어링한 시각)은 토큰 없이 앱 데이터 `devices.json`에 둡니다(`transfer/devices.rs`)
 4. 이후 요청은 토큰을 보내지 않고 서명만 보냅니다
 
-코드를 5번 틀리면 짝짓기 창을 닫습니다. 맞는 코드는 한 번만 쓰이고 바로 창을 닫습니다. 같은 기기 id가 다시 짝지으면 토큰을 새로 바꿉니다(`transfer/pairing.rs`).
+코드를 5번 틀리면 페어링 창을 닫습니다. 맞는 코드는 한 번만 쓰이고 바로 창을 닫습니다. 같은 기기 id가 다시 페어링하면 토큰을 새로 바꿉니다(`transfer/pairing.rs`).
 
 ### 요청 서명
 
-모든 요청(짝짓기, `info` 제외)에 다음 헤더를 붙입니다.
+모든 요청(페어링, `info` 제외)에 다음 헤더를 붙입니다.
 
 | 헤더 | 값 |
 |---|---|
@@ -54,9 +54,9 @@ Mac은 시각 차이가 300초를 넘거나, 본문 해시가 다르거나, 서�
 | 상태 | `error` | 언제 |
 |---|---|---|
 | 400 | `bad_request` | 형식 오류, `raw/` 밖 경로, manifest id가 경로와 다름, manifest의 `raw`가 `raw/` 밖 |
-| 401 | `unauthorized` | 서명, 시각, 본문 해시, 모르는(또는 짝을 끊은) 기기 |
-| 401 | `wrong_code` | 짝짓기 코드가 틀림 |
-| 403 | `pairing_closed` | 짝짓기 창이 닫혀 있음(안 열림, 2분 지남, 5번 틀림, 이미 씀) |
+| 401 | `unauthorized` | 서명, 시각, 본문 해시, 모르는(또는 페어링을 해제한) 기기 |
+| 401 | `wrong_code` | 페어링 코드가 틀림 |
+| 403 | `pairing_closed` | 페어링 창이 닫혀 있음(안 열림, 2분 지남, 5번 틀림, 이미 씀) |
 | 409 | `missing_files` | manifest의 원본이 덜 옴. `missing`에 빠진 상대 경로 목록 |
 | 413 | `too_large` | 원본 한 장 200MB, manifest 1MB 초과 |
 | 422 | `unsupported_version` | manifest `schemaVersion`이 이 앱보다 큼 |
@@ -106,7 +106,7 @@ Mac 구현(`src-tauri/src/inbox.rs`):
 | 이벤트 | 내용 | 언제 |
 |---|---|---|
 | `library-changed` | `{ documentId: string }` | Wi-Fi나 iCloud로 문서를 가져온 뒤 |
-| `pairing-completed` | `{ deviceId: string, deviceName: string }` | 짝짓기에 성공한 뒤 |
+| `pairing-completed` | `{ deviceId: string, deviceName: string }` | 페어링에 성공한 뒤 |
 
 `pairedAt`, `expiresAt`은 RFC 3339 UTC 문자열입니다. 서버 포트를 못 열면 앱은 그대로 뜨고 `listening: false`, `port: 0`으로 보입니다.
 
@@ -116,5 +116,5 @@ v0.2.0에서 앱 이름과 번들 id를 바꿨습니다(`com.nobel6018.leaf` →
 
 - Mac은 시작할 때 옛 데이터 폴더의 `library/`, `models/`를 옮깁니다(`src-tauri/src/migrate.rs`)
 - Mac은 옛 iCloud 폴더 `iCloud Drive/leaf/inbox`가 있으면 같이 훑어 가져옵니다(`src-tauri/src/inbox.rs` `legacy_inbox_dir`)
-- 짝짓기는 다시 합니다. 토큰이 옛 이름의 키체인 항목에 있습니다
+- 페어링은 다시 합니다. 토큰이 옛 이름의 키체인 항목에 있습니다
 - iPhone은 번들 id가 달라 다른 앱으로 설치됩니다. 옛 앱의 문서는 옮겨지지 않으니, 옛 앱을 지우기 전에 보내기를 끝냅니다

@@ -152,9 +152,9 @@ struct TransferClientTests {
         #expect(request.url?.absoluteString == "http://192.168.0.3:52100" + path)
     }
 
-    @Test func 짝짓기_코드_틀림과_창_닫힘을_구별한다() {
+    @Test func 페어링_코드_틀림과_창_닫힘을_구별한다() {
         let wrong = Data(#"{"error":"wrong_code","message":"코드가 맞지 않는다"}"#.utf8)
-        let closed = Data(#"{"error":"pairing_closed","message":"짝짓기 창이 열려 있지 않다"}"#.utf8)
+        let closed = Data(#"{"error":"pairing_closed","message":"페어링 창이 열려 있지 않다"}"#.utf8)
 
         #expect(TransferError.from(status: 401, body: wrong) == .wrongCode)
         #expect(TransferError.from(status: 403, body: closed) == .pairingClosed)

@@ -3,7 +3,7 @@ import Foundation
 // 기기 안 설정. 비밀 값(Mac 토큰)은 여기 두지 않고 키체인에 둔다.
 // @see docs/ios.md
 
-/// 짝지은 Mac. 주소는 바뀔 수 있어 보낼 때마다 Bonjour 이름으로 다시 찾고, 못 찾으면 마지막 주소를 쓴다
+/// 페어링한 Mac. 주소는 바뀔 수 있어 보낼 때마다 Bonjour 이름으로 다시 찾고, 못 찾으면 마지막 주소를 쓴다
 struct PairedMac: Codable, Equatable, Sendable {
     var serviceName: String
     var macName: String
@@ -74,7 +74,7 @@ final class AppSettings {
         }
     }
 
-    /// Mac이 이 iPhone을 알아보는 id. 앱을 지웠다 깔면 새로 생기고 다시 짝지어야 한다
+    /// Mac이 이 iPhone을 알아보는 id. 앱을 지웠다 깔면 새로 생기고 다시 페어링해야 한다
     let deviceID: UUID
 
     var retentionPolicyDays: Int? {

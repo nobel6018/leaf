@@ -5,11 +5,11 @@ import Foundation
 // @see docs/transfer.md
 
 enum TransferError: Error, LocalizedError, Equatable {
-    /// 서명이 맞지 않거나 Mac이 이 기기를 모른다(Mac에서 짝을 끊었다). 다시 짝지어야 한다
+    /// 서명이 맞지 않거나 Mac이 이 기기를 모른다(Mac에서 페어링을 해제했다). 다시 페어링해야 한다
     case unauthorized
-    /// 짝짓기 코드가 틀렸다. 창은 아직 열려 있다(5번까지)
+    /// 페어링 코드가 틀렸다. 창은 아직 열려 있다(5번까지)
     case wrongCode
-    /// 짝짓기 창이 닫혔다(안 열림, 2분 지남, 5번 틀림, 이미 씀). Mac에서 새 코드를 받아야 한다
+    /// 페어링 창이 닫혔다(안 열림, 2분 지남, 5번 틀림, 이미 씀). Mac에서 새 코드를 받아야 한다
     case pairingClosed
     /// manifest를 보냈는데 Mac에 원본이 덜 왔다. 빠진 상대 경로
     case missingFiles([String])
@@ -22,15 +22,15 @@ enum TransferError: Error, LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .unauthorized: "Mac이 이 iPhone을 알아보지 못합니다. 설정에서 다시 짝지어 주세요"
+        case .unauthorized: "Mac이 이 iPhone을 알아보지 못합니다. 설정에서 다시 페어링해 주세요"
         case .wrongCode: "코드가 맞지 않습니다. Mac에 보이는 6자리를 다시 넣어 주세요"
-        case .pairingClosed: "Mac의 짝짓기 창이 닫혔습니다. Mac 설정에서 \"iPhone 연결\"을 다시 눌러 새 코드를 받아 주세요"
+        case .pairingClosed: "Mac의 페어링 창이 닫혔습니다. Mac 설정에서 \"iPhone 연결\"을 다시 눌러 새 코드를 받아 주세요"
         case let .missingFiles(paths): "Mac에 원본 \(paths.count)장이 덜 왔습니다"
         case .tooLarge: "파일이 너무 커서 Mac이 받지 않습니다(원본 한 장 200MB까지)"
         case .unsupportedVersion: "Mac의 scanshelf가 오래돼 이 문서를 읽지 못합니다. Mac 앱을 업데이트해 주세요"
         case let .http(status, code, message): "Mac 응답 \(status) \(code): \(message)"
         case .invalidResponse: "Mac 응답을 읽지 못했습니다"
-        case .notPaired: "짝지은 Mac이 없습니다"
+        case .notPaired: "페어링한 Mac이 없습니다"
         }
     }
 
@@ -109,7 +109,7 @@ struct TransferClient: Sendable {
         return try JSONDecoder().decode(MacInfo.self, from: data)
     }
 
-    /// 짝짓기는 아직 토큰이 없어 서명하지 않는다
+    /// 페어링은 아직 토큰이 없어 서명하지 않는다
     func pair(code: String, deviceID: UUID, deviceName: String) async throws -> PairResponse {
         var request = request("POST", "/v1/pair")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")

@@ -1,7 +1,7 @@
-//! 짝지은 iPhone 목록과 기기별 토큰.
+//! 페어링한 iPhone 목록과 기기별 토큰.
 //!
 //! 토큰은 OS 키체인(macOS Keychain, Windows 자격 증명 관리자)에만 두고, 앱 데이터의 `devices.json`에는
-//! 기기 id, 이름, 짝지은 시각만 둔다. 토큰은 어떤 로그에도 남기지 않는다.
+//! 기기 id, 이름, 페어링한 시각만 둔다. 토큰은 어떤 로그에도 남기지 않는다.
 //!
 //! @see docs/transfer.md
 
@@ -112,7 +112,7 @@ impl Devices {
         self.list.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
-    /// 같은 기기가 다시 짝지으면 토큰과 이름을 새로 바꾼다
+    /// 같은 기기가 다시 페어링하면 토큰과 이름을 새로 바꾼다
     pub fn add(&self, device_id: &str, device_name: &str, token: &[u8]) -> Result<PairedDevice, String> {
         self.tokens.set(device_id, token)?;
         self.cache

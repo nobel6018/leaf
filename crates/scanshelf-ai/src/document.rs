@@ -1,4 +1,4 @@
-//! 문서 폴더 읽기. manifest에 Mac 수정(edits.json)을 덮고, 출력 페이지를 문서 순서대로 OCR과 짝짓는다.
+//! 문서 폴더 읽기. manifest에 Mac 수정(edits.json)을 덮고, 출력 페이지를 문서 순서대로 OCR과 페어링하는다.
 //!
 //! @see docs/ai.md
 

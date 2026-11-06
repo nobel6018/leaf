@@ -1,7 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-// 설정: 짝지은 Mac, iCloud 폴더, 원본 자동 삭제 기간, 자동 촬영 민감도.
+// 설정: 페어링한 Mac, iCloud 폴더, 원본 자동 삭제 기간, 자동 촬영 민감도.
 // @see docs/ios.md
 
 struct SettingsView: View {
@@ -17,11 +17,11 @@ struct SettingsView: View {
             Section {
                 if let mac = app.settings.pairedMac {
                     LabeledContent("Mac", value: mac.macName)
-                    LabeledContent("짝지은 날", value: mac.pairedAt.formatted(date: .abbreviated, time: .shortened))
+                    LabeledContent("페어링한 날", value: mac.pairedAt.formatted(date: .abbreviated, time: .shortened))
                     if let address = mac.lastAddress {
                         LabeledContent("마지막 주소", value: "\(address.host):\(address.port)")
                     }
-                    Button("짝짓기 해제", role: .destructive) { confirmUnpair = true }
+                    Button("페어링 해제", role: .destructive) { confirmUnpair = true }
                 } else {
                     NavigationLink("Mac 연결") { PairingView() }
                         .accessibilityIdentifier("pairMac")
@@ -93,10 +93,10 @@ struct SettingsView: View {
                 failure = error.localizedDescription
             }
         }
-        .confirmationDialog("짝짓기를 해제합니다", isPresented: $confirmUnpair, titleVisibility: .visible) {
+        .confirmationDialog("페어링을 해제합니다", isPresented: $confirmUnpair, titleVisibility: .visible) {
             Button("해제", role: .destructive) { app.unpair() }
         } message: {
-            Text("다시 보내려면 Mac에서 새 코드를 받아 짝지어야 합니다.")
+            Text("다시 보내려면 Mac에서 새 코드를 받아 페어링해야 합니다.")
         }
     }
 }
@@ -110,7 +110,7 @@ struct PairingView: View {
     @State private var failure: String?
     @FocusState private var codeFocused: Bool
 
-    /// Mac이 보여 주는 짝짓기 코드 길이
+    /// Mac이 보여 주는 페어링 코드 길이
     static let codeLength = 6
 
     var body: some View {

@@ -13,7 +13,7 @@ struct DiscoveredMac: Identifiable, Hashable, Sendable {
     var id: String { name }
 }
 
-/// 짝지은 Mac에 HTTP로 붙을 주소
+/// 페어링한 Mac에 HTTP로 붙을 주소
 struct MacAddress: Codable, Equatable, Sendable {
     var host: String
     var port: Int

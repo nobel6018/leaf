@@ -1,7 +1,7 @@
 import Foundation
 import Security
 
-// 짝지은 Mac의 토큰은 키체인에만 둔다. 무료 Apple ID 서명이라 접근 그룹을 따로 쓰지 않고 앱 기본 그룹에 둔다.
+// 페어링한 Mac의 토큰은 키체인에만 둔다. 무료 Apple ID 서명이라 접근 그룹을 따로 쓰지 않고 앱 기본 그룹에 둔다.
 // 이 기기에서만 열리게 하고(백업으로 다른 기기에 넘어가지 않게) 잠금 해제 뒤에만 읽는다.
 // @see docs/transfer.md
 

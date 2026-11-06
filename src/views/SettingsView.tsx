@@ -12,7 +12,7 @@ interface Props {
   onError: (e: string) => void;
 }
 
-/** iPhone 연결(짝짓기), 연결된 기기, iCloud 받은 편지함, 보정 모델, 앱 버전. @see docs/transfer.md */
+/** iPhone 연결(페어링), 연결된 기기, iCloud 받은 편지함, 보정 모델, 앱 버전. @see docs/transfer.md */
 export function SettingsView({ update, onError }: Props) {
   const [status, setStatus] = useState<TransferStatus | null | undefined>(undefined);
   const [inbox, setInbox] = useState<InboxStatus | null | undefined>(undefined);
@@ -71,7 +71,7 @@ export function SettingsView({ update, onError }: Props) {
   };
 
   const removeDevice = async (deviceId: string, name: string) => {
-    if (!window.confirm(`${name} 연결을 끊을까요? 다시 보내려면 새로 짝지어야 합니다.`)) return;
+    if (!window.confirm(`${name} 연결을 끊을까요? 다시 보내려면 새로 페어링해야 합니다.`)) return;
     try {
       await api.removePairedDevice(deviceId);
       reload();
@@ -97,7 +97,7 @@ export function SettingsView({ update, onError }: Props) {
         {pairing ? (
           <div className="pairing">
             <p>iPhone scanshelf 앱 설정에서 이 코드를 넣으세요</p>
-            <div className="pairing-code" aria-label="짝짓기 코드">
+            <div className="pairing-code" aria-label="페어링 코드">
               {pairing.code}
             </div>
             <p className="hint">

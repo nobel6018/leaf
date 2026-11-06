@@ -69,13 +69,13 @@ docs/transfer.md를 따릅니다. 코드는 `ios/Scanshelf/Transfer/`, 흐름은
 
 | 경로 | 언제 | 확인 |
 |---|---|---|
-| Wi-Fi | 짝지은 Mac을 Bonjour 이름으로 4초 안에 찾으면. 못 찾으면 마지막 주소로 시도 | manifest `PUT` 200 |
+| Wi-Fi | 페어링한 Mac을 Bonjour 이름으로 4초 안에 찾으면. 못 찾으면 마지막 주소로 시도 | manifest `PUT` 200 |
 | iCloud 폴더 | Wi-Fi가 실패하고 폴더를 골라 두었으면, 또는 문서 화면에서 직접 | Mac이 `inbox/<문서 id>`를 지운 것이 iPhone에 내려왔을 때 |
 
 - 촬영 화면을 닫을 때, 앱이 앞으로 올 때, "모두 보내기"를 누를 때 안 보냈거나 보낸 뒤 바뀐 문서를 보냅니다
 - 이어 보내기: `status`로 Mac에 같은 해시로 있는 원본을 건너뜁니다. manifest가 409 `missing_files`이면 빠진 원본만 다시 보내고 manifest를 다시 보냅니다(2번까지)
 - 서명 경로는 보낼 URL에서 꺼낸 퍼센트 인코딩된 경로 그대로입니다. 경로에는 UUID와 `raw/<uuid>.heic`만 들어가 인코딩할 글자가 없습니다
-- 짝짓기 오류는 코드 틀림(401 `wrong_code`, 다시 넣으면 됨)과 창 닫힘(403 `pairing_closed`, Mac에서 새 코드)을 다르게 안내합니다
+- 페어링 오류는 코드 틀림(401 `wrong_code`, 다시 넣으면 됨)과 창 닫힘(403 `pairing_closed`, Mac에서 새 코드)을 다르게 안내합니다
 - Bonjour TXT `api`가 1이 아닌 Mac은 목록에 보이지 않습니다. 주소는 IPv4로 풉니다(Mac 서버가 IPv4만 엽니다)
 - iCloud 폴더는 고른 폴더에서 `scanshelf` 루트를 찾습니다. `scanshelf` 안의 폴더를 골라도 위로 올라가고, iCloud Drive 자체를 고르면 그 안의 `scanshelf`를 씁니다. iCloud Drive 밖은 거절합니다(`ICloudFolderLayout.scanshelfRoot`)
 

@@ -2,7 +2,7 @@ import CryptoKit
 import Foundation
 
 // Mac(crates/scanshelf-core/src/transfer.rs)과 같은 값을 만들어야 한다. fixtures/transfer-signature.json을
-// 두 쪽 테스트가 같이 확인한다. 토큰은 짝짓기 때 한 번만 오가고 이후에는 서명만 보낸다.
+// 두 쪽 테스트가 같이 확인한다. 토큰은 페어링 때 한 번만 오가고 이후에는 서명만 보낸다.
 // @see docs/transfer.md
 
 struct RequestSigner: Sendable {

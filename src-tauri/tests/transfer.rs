@@ -180,7 +180,7 @@ async fn info는_인증_없이_맥_이름을_돌려준다() {
 }
 
 #[tokio::test]
-async fn 짝짓기에_성공하면_기기가_목록에_들어가고_코드는_다시_못_쓴다() {
+async fn 페어링에_성공하면_기기가_목록에_들어가고_코드는_다시_못_쓴다() {
     let h = start().await;
     let code = h.service.pairing.start(Utc::now()).code;
     let id = Uuid::new_v4().to_string();
@@ -374,7 +374,7 @@ async fn 본문이_서명한_해시와_다르면_401이고_파일을_남기지_�
 }
 
 #[tokio::test]
-async fn 짝을_끊은_기기는_더_보내지_못한다() {
+async fn 페어링을_해제한_기기는_더_보내지_못한다() {
     let h = start().await;
     let device = h.pair().await;
     h.service.devices.remove(&device.id).unwrap();
