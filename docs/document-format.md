@@ -39,12 +39,13 @@
 | `pages[].capturedAt` | 촬영 시각 |
 | `pages[].layout` | `single`, `spread`(펼친 두 페이지), `trifold`(펼친 3단 접지) |
 | `pages[].quad` | 테두리 네 꼭짓점. 원본 기준 0~1 좌표, 원점 왼쪽 위, EXIF 회전 적용 후. 감지 실패면 없음 |
+| `revision` | iPhone이 저장할 때마다 1씩 올리는 번호. 없으면 0으로 본다. Mac은 보관함보다 번호가 작은 manifest를 받지 않는다(`Store::is_stale`) |
 
 ## 규칙
 
 - 저장은 임시 파일에 쓴 뒤 이름 바꾸기로 합니다. 전송이나 iCloud 동기화 중에 반쯤 쓴 파일을 읽지 않게 합니다
 - 날짜는 밀리초 단위로 씁니다. Swift `Date`는 Double이라 그대로 쓰면 저장할 때마다 1ms씩 밀립니다(`Manifest.formatDate`)
-- 형식을 바꾸면 `SCHEMA_VERSION`을 올리고 `fixtures/`에 새 예시를 추가합니다. 옛 예시는 지우지 않습니다
+- 형식을 바꾸면 `SCHEMA_VERSION`을 올리고 `fixtures/`에 새 예시를 추가합니다. 옛 예시는 지우지 않습니다. 옛 앱이 무시해도 되는 선택 필드(`revision`)는 예외입니다. 올리면 옛 앱이 문서를 아예 못 읽습니다
 - 처리 알고리즘을 바꾸면 `PIPELINE_VERSION`을 올립니다. 낮은 버전 결과는 다시 처리 대상으로 표시합니다
 
 ## 태그

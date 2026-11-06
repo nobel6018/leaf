@@ -35,13 +35,13 @@ struct SettingsView: View {
             Section {
                 if let root = app.iCloud.scanshelfRoot {
                     LabeledContent("폴더", value: root.lastPathComponent)
-                    Button("폴더 잊기", role: .destructive) { app.iCloud.forget() }
+                    Button("폴더 잊기", role: .destructive) { app.forgetICloudFolder() }
                 }
                 Button(app.iCloud.isChosen ? "다른 폴더 고르기" : "iCloud Drive/scanshelf 고르기") { pickingFolder = true }
             } header: {
-                Text("iCloud 폴더로 보내기")
+                Text("iCloud 백업")
             } footer: {
-                Text("Mac이 같은 Wi-Fi에 없을 때 씁니다. 파일 앱에서 iCloud Drive의 scanshelf 폴더(없으면 iCloud Drive)를 고르세요.")
+                Text("찍을 때마다 바로 복사해 앱을 지워도 스캔이 남습니다. Mac이 받으면 iCloud에서 지웁니다. 파일 앱에서 iCloud Drive의 scanshelf 폴더(없으면 iCloud Drive)를 고르세요.")
             }
 
             Section {
@@ -87,7 +87,7 @@ struct SettingsView: View {
         }
         .fileImporter(isPresented: $pickingFolder, allowedContentTypes: [.folder]) { result in
             do {
-                try app.iCloud.choose(result.get())
+                try app.chooseICloudFolder(result.get())
                 failure = nil
             } catch {
                 failure = error.localizedDescription

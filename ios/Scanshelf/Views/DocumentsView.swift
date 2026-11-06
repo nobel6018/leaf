@@ -66,6 +66,12 @@ struct DocumentsView: View {
                 .disabled(app.settings.pairedMac == nil && !app.iCloud.isChosen)
             }
         }
+        // 목록을 내려도 가려지지 않게 목록 밖에 둔다
+        .safeAreaInset(edge: .top) {
+            if let notice = app.backupNotice {
+                BackupNoticeView(notice: notice)
+            }
+        }
         .safeAreaInset(edge: .bottom) {
             Button {
                 showingNew = true
@@ -194,11 +200,13 @@ struct SendStatusBadge: View {
     var body: some View {
         switch status {
         case .notSent:
-            Label("안 보냄", systemImage: "iphone").labelStyle(.badge).foregroundStyle(.secondary)
+            Label("이 iPhone에만", systemImage: "iphone").labelStyle(.badge).foregroundStyle(.orange)
         case let .sending(progress):
             ProgressView(value: progress).frame(width: 60)
+        case .backupPending:
+            Label("iCloud 백업 대기", systemImage: "icloud.and.arrow.up").labelStyle(.badge).foregroundStyle(.orange)
         case .awaitingMac:
-            Label("iCloud 대기", systemImage: "icloud.and.arrow.up").labelStyle(.badge).foregroundStyle(.blue)
+            Label("iCloud에 있음", systemImage: "checkmark.icloud").labelStyle(.badge).foregroundStyle(.blue)
         case .sent:
             Label("Mac에 있음", systemImage: "checkmark.circle.fill").labelStyle(.badge).foregroundStyle(.green)
         case .changedSinceSent:

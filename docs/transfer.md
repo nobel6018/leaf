@@ -2,7 +2,9 @@
 
 2026-11-05 결정: 같은 Wi-Fi면 직접 보내고, 떨어져 있으면 iCloud 폴더로 보냅니다.
 
-코드: 서명 `crates/scanshelf-core/src/transfer.rs`, 예시 `fixtures/transfer-signature.json`, Mac 서버 `src-tauri/src/transfer/`, 보관함 가져오기 `src-tauri/src/store.rs`(`Store::import`), iCloud inbox `src-tauri/src/inbox.rs`(`scan_inbox`)
+2026-11-06 결정: 찍은 장은 곧바로 iCloud 폴더에도 복사합니다(아래 "iCloud 백업"). iOS는 앱을 지우면 샌드박스도 지우므로 `Documents/library`에만 있는 스캔은 앱과 함께 사라집니다. iCloud 저장 공간을 쓰는 것과 회사 자료가 iCloud를 거치는 것은 사용자가 받아들였습니다.
+
+코드: 서명 `crates/scanshelf-core/src/transfer.rs`, 예시 `fixtures/transfer-signature.json`, Mac 서버 `src-tauri/src/transfer/`, 보관함 가져오기 `src-tauri/src/store.rs`(`Store::import`), iCloud inbox `src-tauri/src/inbox.rs`(`scan_inbox`), iPhone 백업 `ios/Scanshelf/Transfer/ICloudBackup.swift`, `ios/Scanshelf/Library/BackupQueue.swift`
 
 ## Wi-Fi 직접 전송 (기본)
 
@@ -67,29 +69,86 @@ Mac은 시각 차이가 300초를 넘거나, 본문 해시가 다르거나, 서�
 
 이어 보내기는 파일 단위입니다. `status`는 받는 중 폴더(`incoming/<id>/`)와 보관함에 이미 있는 원본을 함께 돌려주므로, iPhone은 목록에 없거나 해시가 다른 파일만 다시 보냅니다. 받다 끊긴 파일은 이어 쓰지 않고 처음부터 다시 받습니다(임시 파일은 `incoming/<id>/.parts/`에 두고 앱을 켤 때 지웁니다).
 
-가져오기(`Store::import`)는 원자적입니다. 새 문서는 `incoming/` 안 임시 폴더에 원본과 manifest를 다 만든 뒤 이름 바꾸기 한 번으로 `library/<id>/`에 넣습니다. 이미 있는 문서는 새 원본을 하나씩 임시 이름에서 이름 바꾸기로 넣고 manifest를 마지막에 바꿉니다. 보관함에 이미 있는 원본은 덮어쓰지 않습니다.
+가져오기(`Store::import`)는 원자적입니다. 새 문서는 `incoming/` 안 임시 폴더에 원본과 manifest를 다 만든 뒤 이름 바꾸기 한 번으로 `library/<id>/`에 넣습니다. 이미 있는 문서는 새 원본을 하나씩 임시 이름에서 이름 바꾸기로 넣고 manifest를 마지막에 바꿉니다. 보관함에 이미 있는 원본은 덮어쓰지 않습니다. 페이지는 id로 합치므로 같은 문서가 Wi-Fi와 iCloud로 모두 와도 장이 늘지 않습니다.
+
+manifest의 `revision`이 보관함 것보다 작으면 아무것도 바꾸지 않고 성공으로 끝냅니다(`Store::is_stale`). Wi-Fi로 새 판을 받은 뒤 iCloud에서 옛 판이 늦게 도착해도, 나중에 찍은 장이 빠지거나 지운 장이 되살아나지 않습니다.
 
 받는 동안에는 문서 단위로 busy 등록부(`src-tauri/src/busy.rs`)에 올라 앱 안 업데이트가 앱을 다시 켜지 않습니다(`transfer/sessions.rs`). 첫 원본 `PUT`에 올리고 manifest 가져오기가 끝나면 내립니다. 원본 사이 몇 초의 틈에 업데이트가 끼어들지 않게 요청 단위가 아니라 문서 단위로 잡았습니다. 요청 없이 2분이 지나면(iPhone이 Wi-Fi를 벗어남) 내립니다. 받다 만 원본은 `incoming/`에 남아 다음에 이어 보냅니다. iCloud inbox 가져오기도 문서 하나를 복사하는 동안 등록합니다.
 
 iPhone은 보내기에 성공한 문서를 "Mac에 있음"으로 표시합니다. 원본 삭제는 설정에서 고릅니다(기본: 7일 뒤 지움).
 
-## iCloud 폴더 (보조)
+## iCloud 백업
 
-무료 Apple ID 서명이라 CloudKit은 못 쓰고 iCloud Drive 폴더를 씁니다.
+무료 Apple ID 서명이라 CloudKit과 앱 전용 iCloud 컨테이너를 못 쓰고, 사용자가 고른 iCloud Drive 폴더를 씁니다. iPhone은 처음 한 번 파일 앱 폴더 선택기로 `iCloud Drive/scanshelf`를 고르고 보안 범위 북마크로 기억합니다.
 
-- iPhone: 처음 한 번 파일 앱 폴더 선택기로 `iCloud Drive/scanshelf`를 고르고 보안 범위 북마크로 기억합니다
-- iPhone은 `scanshelf/inbox/<문서 id>/`에 원본을 먼저, manifest를 마지막에 복사합니다
-- Mac은 `~/Library/Mobile Documents/com~apple~CloudDocs/scanshelf/inbox`를 지켜보다가 manifest가 있고 모든 원본이 받아진 문서를 보관함으로 가져온 뒤 inbox에서 지웁니다
-- 아직 받지 않은 파일(`.icloud` 자리표시)은 `brctl download`나 `NSFileCoordinator`로 받게 한 뒤 다시 확인합니다
+```
+iCloud Drive/scanshelf/
+  inbox/<문서 id>/manifest.json, raw/<페이지 id>.heic    iPhone이 쓰고, 가져오면 Mac이 지운다
+  received/<문서 id>.json                                Mac만 쓴다
+```
 
-Mac 구현(`src-tauri/src/inbox.rs`):
+### 새 폴더를 만들지 않고 inbox를 그대로 쓴 이유
+
+Mac은 이미 inbox를 5초마다 훑고 합칠 줄 압니다. 백업 전용 폴더를 두면 Mac이 받았을 때 지우는 규칙을 또 만들어야 합니다. 찍을 때마다 inbox에 올리면 Mac이 켜져 있는 한 Wi-Fi 없이도 곧 보관함에 들어오고, 꺼져 있으면 iCloud에 남아 있다가 켜질 때 들어옵니다.
+
+### 흐름
+
+1. 찍으면 iPhone은 `Documents/library`에 저장하고 셔터를 끝냅니다. 복사 일꾼은 깨우기만 합니다(`ICloudBackup.kick`)
+2. 일꾼은 메인 스레드 밖에서 한 번에 한 문서씩, Mac에 있다고 확인되지 않은 원본을 먼저, manifest를 마지막에 복사합니다. 그다음 지금 판에 없는 파일을 치웁니다(`ICloudBackupEngine.sync`)
+3. Mac은 manifest가 있고 원본이 모두 있으면(inbox나 보관함 어디든) 보관함으로 합칩니다
+4. Mac은 `received/<문서 id>.json`을 쓰고, 그 뒤에 가져온 파일만 inbox에서 지웁니다
+5. iPhone은 20초마다 확인 파일을 봅니다. 적힌 manifest 해시가 지금 판의 지문과 같으면 "Mac에 있음"이 되고 iCloud 사본을 치웁니다
+
+### 확인 파일
+
+```json
+{ "documentId": "<id>", "manifestSha256": "<가져온 manifest 바이트의 SHA-256>", "raw": ["raw/<페이지 id>.heic"] }
+```
+
+`raw`는 보관함에 있는 원본 전부입니다. iPhone은 이 원본을 다시 올리지 않습니다. `manifestSha256`은 iPhone의 manifest 지문(`Manifest.fingerprint`)과 같은 값입니다.
+
+폴더가 사라진 것을 받은 것으로 보지 않습니다. v0.2.2까지는 그렇게 판단했는데, Mac이 폴더를 지우는 사이 iPhone이 올린 다음 장이 같이 사라지면 iPhone은 그 장까지 받았다고 믿고 나중에 원본을 지웁니다. 같은 이유로 Mac은 폴더를 통째로 지우지 않습니다.
+
+한 달이 지난 확인 파일은 Mac이 앱을 켤 때 지웁니다(`prune_receipts`). 그 뒤에 iPhone이 확인하려 해도 다시 올리면 같은 파일이 다시 생깁니다.
+
+### 함정과 처리
+
+| 상황 | 처리 | 코드 |
+|---|---|---|
+| Mac이 가져간 뒤 다음 장을 찍었다. 새 manifest가 inbox에 없는 원본을 적는다 | 보관함에 있는 원본은 있는 것으로 친다. `edits.json`, `processing.json`은 건드리지 않는다 | `import_one`, `Store::import` |
+| 앞 장 원본이 자리표시로 inbox에 남았다 | 보관함에 있으면 내려받기를 요청하지 않는다 | `import_one` |
+| 다시 찍기, 페이지 지우기 | 새 manifest를 쓴 뒤에 옛 원본을 iCloud에서 지운다. Mac이 먼저 보면 manifest에 없는 파일이라 보관함에 넣지 않고 남겨 두며, iPhone이 지운 뒤 빈 폴더를 치운다 | `ICloudBackupEngine.prune`, `clear_imported`, `remove_if_empty` |
+| manifest에 없는 원본이 inbox에 있다 | 다음 장일 수 있어 Mac이 지우지 않는다. 지금 판에 없는 것을 지우는 쪽은 iPhone뿐이다 | `clear_imported` |
+| Mac이 읽은 뒤 manifest가 바뀌었다 | 읽은 바이트와 같을 때만 지운다 | `clear_imported` |
+| 옛 판이 늦게 왔다 | `revision`으로 거르고 inbox에서 치운다. 원본이 빠져 있어도 기다리지 않는다 | `Store::is_stale` |
+| 폴더가 사라졌는데 확인 파일이 없다 | 2분을 기다린 뒤 빠진 것을 다시 올린다. 간격은 두 배씩 1시간까지. 보관함에 있으면 Mac은 아무것도 더하지 않고 확인 파일만 다시 쓴다 | `BackupQueue.recopyGrace` |
+| 복사 실패(iCloud 꺼짐, 공간 부족, 폴더 접근 끊김) | 촬영에 영향이 없다. 15초에서 두 배씩 1시간까지 간격을 두고 다시 하고, 앱을 다시 켜면 바로 다시 한다 | `BackupQueue.retryDelay` |
+| 복사 도중 앱이 죽었다 | 파일은 임시 이름에 쓴 뒤 이름을 바꾼다. 할 일 목록을 저장하지 않고 문서와 기록에서 계산하므로 잃어버릴 대기열이 없다. 끝난 원본은 크기로 건너뛴다 | `BackupQueue.plan` |
+| Wi-Fi로 먼저 받았다 | iPhone이 iCloud 사본을 치우고 그 원본은 다시 올리지 않는다. 치우기 전에 Mac이 inbox를 봐도 장이 늘지 않는다 | `ICloudBackup.noteDelivered` |
+| iPhone에서 문서를 지웠다 | iCloud 사본도 지운다. 폴더에 닿지 않으면 기억해 두었다가 치운다(`deletedDocuments`). Mac이 이미 가져갔으면 Mac에는 남는다 | `ICloudBackup.documentDeleted` |
+| Mac 보관함에서 문서를 지웠는데 iPhone이 이어 찍었다 | 앞 장이 어디에도 없어 기다리게 되므로 Mac이 확인 파일을 비운다. iPhone은 빈 확인 파일을 보면 원본을 처음부터 올린다. 문서는 Mac에 다시 생긴다(Wi-Fi 이어 찍기와 같다) | `ask_for_everything_again` |
+
+iCloud가 충돌을 풀며 만든 사본(`manifest 2.json` 등)은 iPhone이 다음 복사 때 치웁니다.
+
+### 지키는 규칙
+
+- iPhone의 원본은 Mac이 받았다고 확인되기 전에 지우지 않습니다. 자동 삭제는 Mac이 지금 판을 확인한 문서만 대상입니다(`RetentionPolicy`). iCloud에 올라간 것은 확인이 아닙니다
+- 사용자가 지운 장과 다시 찍어 버린 장은 예외입니다. 사용자가 고른 일입니다
+- 앱을 지우면 iCloud의 inbox는 남고, Mac이 받아 갑니다. 마지막 장은 manifest를 쓰기 전이면 원본만 남아 Mac이 가져가지 못합니다(파일 앱이나 Finder에서 꺼낼 수 있습니다)
+
+### Mac 구현
+
+`src-tauri/src/inbox.rs`:
 
 - 5초마다 inbox를 훑습니다. 파일 이벤트는 iCloud가 자리표시를 실제 파일로 바꾸는 순간을 놓치기 쉬워 훑기를 골랐습니다
 - 받지 않은 파일은 두 모양으로 봅니다. 옛 방식의 `.이름.icloud` 자리표시와, macOS 14 이후 FileProvider의 내용 없는(dataless, `SF_DATALESS`) 파일입니다. 둘 다 `brctl download <경로>`로 요청하고 같은 파일은 60초에 한 번만 요청합니다
 - 폴더 이름이 문서 id(UUID)가 아니면 건너뛰고, manifest id와 다르면 가져오지 않습니다
-- 이미 보관함에 있는 원본은 iPhone이 inbox에 다시 올리지 않아도 됩니다
-- 보관함에는 복사로 넣고, 가져오기가 끝난 뒤에 inbox 폴더를 지웁니다. 가져오기가 실패하면 inbox는 그대로 남습니다
+- 보관함에는 복사로 넣습니다. 가져오기나 확인 파일 쓰기가 실패하면 inbox는 그대로 남고 다음 훑기에서 다시 합니다
 - iCloud Drive가 켜져 있으면 앱을 켤 때 `scanshelf/inbox`를 만들어 둡니다. macOS가 아니면 감시하지 않습니다
+
+### 버전
+
+iPhone과 Mac을 같이 올려야 합니다. 옛 Mac은 확인 파일을 쓰지 않아 iPhone이 "Mac에 있음"이 되지 못하고 간격을 늘려 가며 다시 올립니다(원본은 Mac으로 들어가고, iPhone 원본은 지우지 않으니 잃는 것은 없습니다). 옛 iPhone은 새 Mac에 그대로 보낼 수 있습니다(`revision` 없음은 0).
 
 ## Mac 앱 화면 쪽 연결 (Tauri)
 

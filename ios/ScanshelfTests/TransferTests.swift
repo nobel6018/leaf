@@ -110,33 +110,6 @@ struct ICloudFolderTests {
         #expect(ICloudFolderLayout.scanshelfRoot(forPicked: drive.appending(path: "Documents")) == nil)
         #expect(ICloudFolderLayout.scanshelfRoot(forPicked: URL(filePath: "/private/var/mobile/Containers/Shared/scanshelf")) == nil)
     }
-
-    @Test func 원본을_복사하고_manifest를_마지막에_쓴다() throws {
-        let base = FileManager.default.temporaryDirectory.appending(path: "scanshelf-icloud-\(UUID().uuidString)")
-        let store = DocumentStore(root: base.appending(path: "library"))
-        let scanshelfRoot = base.appending(path: "com~apple~CloudDocs/scanshelf")
-        var manifest = try store.create(name: "예시_1", kind: .pamphlet, session: "예시")
-        manifest = try store.addPage(to: manifest, photo: Data([9, 8, 7]), quad: nil, layout: .single, capturedAt: .now)
-        defer { try? FileManager.default.removeItem(at: base) }
-
-        let exported = try ICloudExporter.export(documentID: manifest.id, store: store, scanshelfRoot: scanshelfRoot)
-
-        let inbox = ICloudFolderLayout.inbox(in: scanshelfRoot, documentID: manifest.id)
-        #expect(exported == manifest)
-        #expect(try Data(contentsOf: inbox.appending(path: manifest.pages[0].raw)) == Data([9, 8, 7]))
-        let copied = try Manifest.decoder().decode(Manifest.self, from: Data(contentsOf: inbox.appending(path: "manifest.json")))
-        #expect(copied == manifest)
-        #expect(!ICloudExporter.isImportedByMac(documentID: manifest.id, scanshelfRoot: scanshelfRoot))
-
-        try FileManager.default.removeItem(at: inbox)
-        #expect(ICloudExporter.isImportedByMac(documentID: manifest.id, scanshelfRoot: scanshelfRoot))
-    }
-
-    @Test func inbox가_안_보이면_받았다고_보지_않는다() {
-        let missingRoot = FileManager.default.temporaryDirectory.appending(path: "scanshelf-none-\(UUID().uuidString)")
-
-        #expect(!ICloudExporter.isImportedByMac(documentID: UUID(), scanshelfRoot: missingRoot))
-    }
 }
 
 // Mac 서버(src-tauri/src/transfer/server.rs)의 응답 모양과 맞춘다
