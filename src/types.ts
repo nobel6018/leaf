@@ -50,6 +50,8 @@ export interface Edits {
   session?: string;
   quads?: Record<string, Quad>;
   layouts?: Record<string, PageLayout>;
+  /** 자동 회전 뒤에 더 돌린 각도(시계 방향) */
+  rotations?: Record<string, number>;
   deletedPages?: string[];
   pageOrder?: string[];
   /** `/` 계층 태그. 고칠 때는 api.setDocumentTags를 쓴다(tagsByUser를 함께 켠다) */

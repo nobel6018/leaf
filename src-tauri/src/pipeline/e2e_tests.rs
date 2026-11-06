@@ -246,3 +246,17 @@ fn 합성_예시_문서를_보관함에_만든다() {
         eprintln!("만든 문서: {}", dir.display());
     }
 }
+
+#[test]
+fn 네_방향으로_돌아간_페이지의_회전을_찾는다() {
+    let page = render_lines(1400, 1000, &LINES);
+    for (turned_by, correction) in [(0u16, 0u16), (90, 270), (180, 180), (270, 90)] {
+        let turned = crate::ocr::rotate(&page, turned_by);
+        assert_eq!(crate::ocr::detect_rotation(&turned), Some(correction), "{turned_by}도 돌린 페이지");
+    }
+}
+
+#[test]
+fn 글자가_없으면_회전을_정하지_않는다() {
+    assert_eq!(crate::ocr::detect_rotation(&RgbImage::from_pixel(800, 600, Rgb([250, 250, 250]))), None);
+}

@@ -27,6 +27,9 @@ pub struct Edits {
     pub quads: BTreeMap<Uuid, Quad>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub layouts: BTreeMap<Uuid, PageLayout>,
+    /// 자동 회전이 틀렸을 때 사람이 더 돌린 각도(시계 방향)
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub rotations: BTreeMap<Uuid, u16>,
     /// Mac에서 지운 페이지. 원본은 남기고 목록에서만 뺀다
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub deleted_pages: Vec<Uuid>,
@@ -70,6 +73,9 @@ impl Edits {
             }
             if let Some(layout) = self.layouts.get(&page.id) {
                 page.layout = *layout;
+            }
+            if let Some(rotation) = self.rotations.get(&page.id) {
+                page.extra_rotation = *rotation;
             }
         }
         if let Some(order) = &self.page_order {

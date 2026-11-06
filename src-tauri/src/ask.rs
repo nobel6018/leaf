@@ -459,6 +459,7 @@ pub(crate) mod testkit {
         for (i, blocks) in pages.iter().enumerate() {
             let page_id = Uuid::new_v4();
             manifest_pages.push(Page {
+                extra_rotation: 0,
                 id: page_id,
                 raw: format!("raw/{page_id}.heic"),
                 captured_at: created_at + chrono::Duration::minutes(i as i64),

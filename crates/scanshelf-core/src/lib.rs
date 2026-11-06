@@ -93,6 +93,13 @@ pub struct Page {
     /// 감지 실패면 없음. Mac이 원본 해상도에서 다시 감지한다
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub quad: Option<Quad>,
+    /// 자동 회전 뒤에 사람이 더 돌린 각도(시계 방향, 0, 90, 180, 270). Mac 수정(edits.json)에서 온다
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub extra_rotation: u16,
+}
+
+fn is_zero(value: &u16) -> bool {
+    *value == 0
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -157,6 +164,9 @@ fn validate_page(page: &Page) -> Result<(), ManifestError> {
         .any(|component| !matches!(component, Component::Normal(_)));
     if page.raw.is_empty() || escapes {
         return Err(invalid("raw 경로는 문서 폴더 안의 상대 경로여야 한다"));
+    }
+    if page.extra_rotation >= 360 || !page.extra_rotation.is_multiple_of(90) {
+        return Err(invalid("회전은 0, 90, 180, 270도만 된다"));
     }
     if let Some(quad) = page.quad {
         let in_range = quad

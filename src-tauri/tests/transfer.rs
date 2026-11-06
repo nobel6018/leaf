@@ -308,6 +308,7 @@ async fn manifest를_다시_보내면_새_원본만_더하고_맥_편집은_그�
     let page_id = Uuid::new_v4();
     let extra = format!("raw/{page_id}.heic");
     manifest.pages.push(Page {
+        extra_rotation: 0,
         id: page_id,
         raw: extra.clone(),
         captured_at: manifest.created_at + Duration::seconds(30),

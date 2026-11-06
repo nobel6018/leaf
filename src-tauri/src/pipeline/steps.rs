@@ -1,6 +1,6 @@
 //! 페이지 보정 단계. 단계마다 함수 하나이고 실제 처리는 scanshelf-vision이 한다.
 //!
-//! 순서: 원근 보정 → 손가락 지우기 → 두 페이지 분리 → 곡면 보정 → 필기 지우기 → 조명과 필터
+//! 순서: 원근 보정 → 회전 → 손가락 지우기 → 두 페이지 분리 → 곡면 보정 → 필기 지우기 → 조명과 필터
 //! 손가락은 곡면 보정 전에 지운다. 손가락은 펼친 책의 바깥 가장자리에서 들어오므로 원근만 편 사진에서 찾기 쉽고,
 //! 곡면 보정이 손 모양을 늘리기 전이라 지울 면적도 작다(scanshelf-vision process_source와 같은 순서, docs/vision.md).
 //! 모델이 없으면 곡면 보정은 건너뛰고 인페인팅은 종이 색 채우기로 바뀐다(docs/models.md)
@@ -25,12 +25,35 @@ pub struct CorrectInput<'a> {
     pub layout: PageLayout,
     pub options: &'a ProcessOptions,
     pub models: &'a Models,
+    /// 바로 세우려면 시계 방향으로 몇 도 돌려야 하는지. 모르면 None(macOS는 OCR로 판단, ocr::detect_rotation)
+    pub detect_rotation: &'a dyn Fn(&RgbImage) -> Option<u16>,
+    /// 자동 회전 뒤에 사람이 더 돌린 각도
+    pub extra_rotation: u16,
+}
+
+/// 글자로 방향을 정하지 못한 펼침, 접지는 가로로 긴 쪽이 맞으므로 세로로 서 있으면 눕힌다
+pub fn rotate_step(
+    image: RgbImage,
+    layout: PageLayout,
+    detect: &dyn Fn(&RgbImage) -> Option<u16>,
+    extra: u16,
+) -> RgbImage {
+    let wide_layout = layout != PageLayout::Single;
+    let auto = detect(&image).unwrap_or(if wide_layout && image.height() > image.width() { 90 } else { 0 });
+    let total = (auto + extra) % 360;
+    if total == 0 {
+        image
+    } else {
+        crate::ocr::rotate(&image, total)
+    }
 }
 
 /// 원본 한 장을 출력 페이지 한 장, 두 장(펼친 책), 세 장(3단 접지)으로 만든다
 pub fn correct_page(input: CorrectInput<'_>) -> Result<Vec<(PagePart, RgbImage)>, String> {
     let models = input.models;
     let flat = perspective_step(input.image, input.quad)?;
+    // 접힌 선은 세로로 찾으므로 나누기 전에 세워야 한다. 누운 채로는 펼친 두 쪽을 나누지 못한다
+    let flat = rotate_step(flat, input.layout, input.detect_rotation, input.extra_rotation);
     let flat = if input.options.remove_fingers { remove_fingers_step(flat, models)? } else { flat };
     let mut outputs = Vec::new();
     for (part, image) in split_step(flat, input.layout) {
@@ -157,6 +180,8 @@ mod tests {
             layout,
             options: &options,
             models: &Models::none(),
+            detect_rotation: &|_| None,
+            extra_rotation: 0,
         })
         .unwrap()
         .into_iter()
@@ -174,6 +199,22 @@ mod tests {
             image::Rgb([v as u8; 3])
         });
         assert_eq!(spread_input(image), vec![PagePart::Left, PagePart::Right]);
+    }
+
+    #[test]
+    fn 자동_회전에_사람이_돌린_각도를_더한다() {
+        let image = || RgbImage::new(40, 20);
+        let single = PageLayout::Single;
+        assert_eq!(rotate_step(image(), single, &|_| Some(90), 0).dimensions(), (20, 40));
+        assert_eq!(rotate_step(image(), single, &|_| Some(90), 270).dimensions(), (40, 20));
+        assert_eq!(rotate_step(image(), single, &|_| None, 0).dimensions(), (40, 20));
+    }
+
+    #[test]
+    fn 글자로_못_정한_펼침이_세로로_서_있으면_눕힌다() {
+        let tall = RgbImage::new(20, 40);
+        assert_eq!(rotate_step(tall.clone(), PageLayout::Spread, &|_| None, 0).dimensions(), (40, 20));
+        assert_eq!(rotate_step(tall, PageLayout::Single, &|_| None, 0).dimensions(), (20, 40));
     }
 
     #[test]

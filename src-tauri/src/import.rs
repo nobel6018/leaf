@@ -188,6 +188,7 @@ fn build_document(store: &Store, plan: &Plan, render_pdf: PdfRenderer) -> Result
 
 fn page(id: Uuid, raw: String, captured_at: DateTime<Utc>) -> Page {
     Page {
+        extra_rotation: 0,
         id,
         raw,
         captured_at,

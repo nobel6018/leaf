@@ -94,6 +94,7 @@ fn fingerprint(dir: &Path, page: &Page, options: &ProcessOptions) -> String {
         "modified": modified.to_string(),
         "quad": page.quad,
         "layout": page.layout,
+        "extraRotation": page.extra_rotation,
         "options": options,
     });
     hex::encode(Sha256::digest(input.to_string().as_bytes()))
@@ -211,6 +212,8 @@ pub fn process_document(ctx: &ProcessContext<'_>) -> Result<Processing, String> 
             layout: page.layout,
             options: &options,
             models: ctx.models,
+            detect_rotation: &crate::ocr::detect_rotation,
+            extra_rotation: page.extra_rotation,
         })?;
         let mut page_outputs = Vec::new();
         for (part, image) in parts {

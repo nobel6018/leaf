@@ -162,6 +162,13 @@ export function DocumentView({ documentId, initialOutputId, initialQuery, revisi
       layouts: { ...(edits.layouts ?? {}), [page.id]: layout },
     }));
 
+  // 자동 회전이 틀렸을 때. 누를 때마다 시계 방향으로 90도
+  const rotatePage = (page: PageView) =>
+    saveEdits((edits) => {
+      const rotations = edits.rotations ?? {};
+      return { ...edits, rotations: { ...rotations, [page.id]: ((rotations[page.id] ?? 0) + 90) % 360 } };
+    });
+
   const saveQuad = async (pageId: string, quad: Quad | null) => {
     await saveEdits((edits) => {
       const quads = { ...(edits.quads ?? {}) };
@@ -269,6 +276,9 @@ export function DocumentView({ documentId, initialOutputId, initialQuery, revisi
                 <option value="spread">펼친 두 쪽</option>
                 <option value="trifold">3단 접지</option>
               </select>
+              <button className="secondary" onClick={() => rotatePage(current.page)}>
+                돌리기
+              </button>
               <button className="secondary" disabled={current.pageIndex === 0} onClick={() => movePage(current.page.id, -1)}>
                 앞으로
               </button>
@@ -489,7 +499,7 @@ function OptionsPanel({
         />
         필기 지우기
       </label>
-      <p className="hint">옵션을 바꾸면 모든 페이지를 다시 처리합니다. 곡면 보정, 필터, 지우기는 다음 단계에서 연결됩니다.</p>
+      <p className="hint">옵션을 바꾸면 모든 페이지를 다시 처리합니다.</p>
       <button className="secondary" onClick={onReprocess}>
         전체 다시 처리
       </button>

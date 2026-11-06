@@ -17,7 +17,7 @@ fn 세_면_출력은_원본_순서와_면_순서를_따른다() {
     fs::create_dir_all(dir.join("pages")).unwrap();
     let created_at = Utc.with_ymd_and_hms(2026, 11, 5, 12, 0, 0).unwrap();
     let (fold, cover) = (Uuid::new_v4(), Uuid::new_v4());
-    let page = |pid: Uuid, layout| Page { id: pid, raw: format!("raw/{pid}.heic"), captured_at: created_at, layout, quad: None };
+    let page = |pid: Uuid, layout| Page { extra_rotation: 0, id: pid, raw: format!("raw/{pid}.heic"), captured_at: created_at, layout, quad: None };
     Manifest {
         schema_version: SCHEMA_VERSION,
         id,
